@@ -1,4 +1,4 @@
-# Locbatch Documentation #
+# Locbatch #
 
 Locbatch is a program to localize sounds recorded by arrays of microphones.  Specifically, it is being used (I hope) to localize bird calls recorded by arrays of microphones distributed over a relatively wide area (10s to a few 100s of meters) which are all plugged into a single multi-channel recorder.
 
