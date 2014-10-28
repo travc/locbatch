@@ -87,12 +87,14 @@ This includes specifying the events_filename (annotations), mics_filename (node/
 It also gives information needed for localization which may not be included in the annotations file under the `[Event defaults]` section.  
 Finally, it specifies various options for how the localization is to be computed.
 
+Two fiarly well commented example configuration files are included and should be used as a guide (one for Syrinx annotations, one for Raven):  
+[locbatch_syrinx.cfg](locbatch_syrinx.cfg)  
+[locbatch_raven.cfg](locbatch_raven.cfg)  
+The [locbatch_code/default.cfg](../locbatch_code/default.cfg) file gives all the possible options you can set.
+
 Locbatch is intended to be run by creating a new config file (normally by copying, renaming an editing and existing one) for each new batch of localizations.  This way, the documentation of exactly what settings were used will be kept along with the results.  Any options not set in the config file will be set from the [locbatch_code/default.cfg](../locbatch_code/default.cfg) file.
 
 Results will automatically be output to a directory based on the config filename, so try to give it a meaningful name and be careful not overwrite existing files you want to keep.
-
-The [example.loccfg](../example.loccfg) file is fairly well commented, and should serve as a guide.  
-The [locbatch_code/default.cfg](../locbatch_code/default.cfg) file gives all the possible options you can set.
 
 Note: The config file is read by a python [SaveConfigParser](https://docs.python.org/2/library/configparser.html)
 which means settings (known as options) are organized within sections.  It can also do some fancy stuff like interpolation where `%(var)s` will be replaced with the value of `var`, assuming `var` is set somewhere in the config file.
