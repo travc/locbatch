@@ -110,11 +110,12 @@ Locbatch can also be run from the command line, though the exact command may dep
 ## Interpreting results ##
 
 ### Things to watch out for ###
+* **The error indicator/estimate value is very rough and not reliable.**  
+Good vs bad localizations should normally be obvious from looking at the figure, but it is suprisingly tricky to quantify that into a metric.
 * Low frequency (< 200 Hz) sounds can cause problems with spatial aliasing.  Try applying additional smoothing to the cross-correlation-evelopes (cenvs) by adding (under the `[CES]` section):  
 `smooth_cenv_filter: *butter 3 low 100`  
 This will low-pass filter (two-pass, forward & reverse) the cenvs using a 3rd order Butterworth filter with cuttoff at 100 Hz.  
 Alternatively, you could just select the portion of the event above 200 Hz.  The `[Event overrides]` `min_freq` option can be useful for that.
-* The error indicator/estimate value is very rough and not reliable!
 * ...
 
 
