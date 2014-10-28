@@ -5,27 +5,11 @@ __doc__ = """Compute a generalized cross-correlation using FFTs
 """
 
 import sys
-from sys import stderr,stdout
 import math 
 import numpy as NP
 
 from numpy.fft import rfft, irfft, fft, ifft
 #from scipy.fftpack import rfft, irfft, fft, ifft # a bit faster but doesn't seem to work quite right
-from numpy import fliplr
-
-import filtfilt
-from scipy.signal import butter
-
-import matplotlib.pyplot as plt # @TCC temp for visualizations
-
-
-
-### verbose helper funciton (would be macro in C) ###
-VERBOSE_LEVEL_ = 1
-def verbose(lvl,*mesg):
-    global VERBOSE_LEVEL_
-    if( lvl <= VERBOSE_LEVEL_ ): sys.stderr.write(' '.join([str(x) for x in mesg]) +"\n")
-
 
 ## utility ##
 def nextpow2(x):

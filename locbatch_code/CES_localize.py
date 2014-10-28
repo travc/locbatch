@@ -8,10 +8,9 @@ import getopt
 from sys import stderr,stdout
 import ConfigParser
 import time
+import math
 import logging
 
-## matplotlib + numpy and/or pylab for matlab-ish functionality
-import matplotlib as MPL
 import numpy as NP
 from scipy.signal import lfilter, decimate
 import filtfilt
@@ -19,15 +18,9 @@ import filtfilt
 ## local imports
 import mppool
 from mppool import mp_pool
-from cEvent import * # the event class
-from rec_session import CreateRecSession
-from cNodeloc import *
-from gxcorr import *
+import loc_misc
+import gxcorr
 
-from loc_misc import *
-
-#import misc_gui
-import matplotlib.pyplot as plt # @TCC temp for visualizations
 
 USE_MP_FOR_DIST_CALC = False # MP is currently slower for the sensor to point distance calculation
 PROGRESS_PRINTING = False
@@ -109,51 +102,6 @@ class cCESLoc():
         self.config = config # needed for initilizing cRecSession.. @TCC should remove that dependency
 
 
-#    def DoCES(self, event, config, sensors_to_use=None):
-#        """Actually do a correlation-envelope-sum localization
-#                event: the cEvent instance specifying the sound to localize
-#                config: cConfigParser or a config filename defining options
-#                sensors_to_use: list of sensors ([node_id, channel]) to use localizing (None == use all)
-#                 """
-#
-#        # load config from file if we are given a string instead of a cConfigParser
-#        if( isinstance(config, basestring) ):
-#            tmp = config
-#            config = ConfigParser.SafeConfigParser()
-#            config.read(tmp)
-#
-#        ## set the event
-#        self.event = event
-#        ## load nodeloc
-#        nodeloc = cNodeloc(event.nodeloc_filename, \
-#                        config.get('Self Survey', 'force_zero_elevation'), \
-#                        config.get('Self Survey', 'force_zero_elevation_angle'), \
-#                        config.get('Self Survey', 'force_zero_elevation_angle') )
-#
-#        # get sloc from nodeloc (possibly culling based on sensors_to_use)
-#        self.sloc = CullSloc(nodeloc.sloc, event.node_id, event.channel, sensors_to_use)
-#
-#        ## load session 
-#        self.session = cRecSession(config, event.msync_filename) 
-#
-#        ## compute GCCs (and envelopes)
-#        self.gcc_params = cGCCParams(config)
-#        self.CompGCCs(self.event, self.sloc, self.gcc_params)
-#
-#        # the 'sum' (aka accumulation/projection) step
-#        # compute the FUSE_AXIS from the full node positions (from nodeloc.sloc insted of culled sloc)
-#        #@TCC TEMP --- TESTING MULTIPLE Z SLICES
-#        FUSE_AXIS = GetExtentFromSloc(nodeloc.sloc, xpadding=10, ypadding=10, zplane='mean')
-#        # Read values from config
-#        XY_RESOLUTION = config.getfloat('CES','sum_xy_resolution')
-#        Z_RESOLUTION = config.getfloat('CES','sum_z_resolution')
-#        COMP_METHOD = config.getfloat('CES','sum_computation_method')
-#
-#        self.CompSum(FUSE_AXIS, XY_RESOLUTION=XY_RESOLUTION, Z_RESOLUTION=Z_RESOLUTION, \
-#                COMP_METHOD=COMP_METHOD, USE_MP=True)
-
-
-
     def CompGCCs(self, event, sloc, session, params=None, progress_callback=None): #lambda x,y: sys.stderr.write(x+'\n') or True):
         """Compute generalized cross-correlation pairs between sensors
             sloc is sensor/mic locations
@@ -195,7 +143,7 @@ class cCESLoc():
         tic = time.time() # timer 
 
         ## compute speed of sound from temperature and RH
-        self.speed_of_sound = CalcSpeedOfSound(event.temperature, event.RH)
+        self.speed_of_sound = loc_misc.CalcSpeedOfSound(event.temperature, event.RH)
 
         if( not USE_MP ): 
             # make sure global variable is assinged in this process if not using workers 
@@ -210,7 +158,7 @@ class cCESLoc():
         for i in range(len(sloc)):
             r[i] = [0]*len(sloc) # preallocate
             for j in range(i): # symmetric, only need lower tri
-                r[i][j] = CalcDistance(sloc[i][2:5], sloc[j][2:5]); # distance between nodes
+                r[i][j] = loc_misc.CalcDistance(sloc[i][2:5], sloc[j][2:5]); # distance between nodes
                 if( sloc[i][1] == sloc[j][1] ): # same node?
                     r[i][j] += INTRA_NODE_LOC_ERROR
                 else: # different nodes
@@ -285,7 +233,7 @@ class cCESLoc():
                     channels=[key_channel], center_flag=True, length_in_samps=True)
             if( event.filter ): # filter if the coefficents are defined
                 key_data = lfilter(event.filter[1], event.filter[0], key_data)
-            key_sloc_idx = FindInSloc(key_node, key_channel, sloc)
+            key_sloc_idx = loc_misc.FindInSloc(key_node, key_channel, sloc)
 
             # decimate @TCC TESTING
             decimate_factor = self.config.getint('TESTING','decimate_factor') 
@@ -560,25 +508,6 @@ class cCESLoc():
         LOG.info("CompSum: done in {0:.2f} sec".format(time.time()-tic))
 
 
-    def PlotPesudoLikelihoodSlice(self, ax=None, z_idx=None, show_title=True):
-        if( z_idx == None ):
-            z_idx = self.max_C_pt_idxs[0]
-        if( ax is None ):
-            fig = plt.figure()
-            ax = plt.subplot(1,1,1)
-        im = ax.imshow(self.C[z_idx,:,:], extent=self.C_extent[0:4], origin='lower', interpolation='nearest')
-        ax.set_aspect('equal', 'datalim') # make the x and y scales the same
-        ax.grid(True)
-        cbar = plt.colorbar(im)
-        cbar.solids.set_edgecolor("face") # workaroudn common problem with pdf viewers
-        if( show_title ):
-            title_str = "Z = {0:.3f}".format(self.z_vals[z_idx])
-            #title_str = "[{0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}] = {1:.3f}".format(self.max_C_pt, self.max_C_val)
-            ax.set_title(title_str)
-        if( ax is None ):
-            plt.show()
-
-
 ### global scope function ##########################################
 
 def WorkerCompGXCorrPair(key_sloc_idx, target_sloc_idx, key_data, r_offset_samp, start_gtime, dur_samps, filter_coefs, decimate_factor=0):
@@ -606,7 +535,7 @@ def WorkerCompGXCorrPair(key_sloc_idx, target_sloc_idx, key_data, r_offset_samp,
         data = decimate(data,decimate_factor)
 
     # cross correlation
-    c, cenv, maxlag = GXCorr(key_data, data, r_offset_samp, mode='coeff-real', comp_cenv=True)
+    c, cenv, maxlag = gxcorr.GXCorr(key_data, data, r_offset_samp, mode='coeff-real', comp_cenv=True)
     # pack results
     cor = {}
     cor['c'] = c

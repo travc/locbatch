@@ -34,6 +34,7 @@ import rec_session
 import cEvent
 import CES_localize
 import loc_misc
+import fig_misc # needed for PlotMultiSpecs and offset transform... TCC should move or at least cleanup
 
 ################################################################################
 
@@ -238,20 +239,13 @@ def Main():
                 rs.init_from_filename_pattern(os.path.join(data_path, e.soundfile_pattern), node_ids=[x[0] for x in base_sloc])
             else:
                 raise RuntimeError("Neither a metafile or a soundfile_pattern found")
-#            if( e.annotation_type == 'syrinx' ):
-#                rs.init_from_metafile(os.path.join(data_path, e.soundfile))
-#            elif( e.annotation_type == 'raven' ):
-#                rs.init_from_filename_pattern(os.path.join(data_path, e.soundfile_pattern), node_ids=[x[0] for x in base_sloc])
-#                #rs.init_from_metafile(os.path.join(data_path, '20120410_063059 metafile low pass2.txt'))
-#            else:
-#                LOG.error("Annotation type '{}' not supported".format(e.annotation_type))
 
-        ## optional output of multi-spectrogram
+        # optional output of multi-spectrogram
         if( cfg.getboolean('Main', 'multi_specs') ):
             freq_padding = 2000
             #e.filter_desc = '*butter 3 band 100 1000'
             fig = plt.figure(figsize=(8, 14*1.5))
-            loc_misc.PlotMultiSpecs(fig, rs, e.start_time, e.duration, [str(x+1).zfill(2) for x in range(14)], 1,
+            fig_misc.PlotMultiSpecs(fig, rs, e.start_time, e.duration, [str(x+1).zfill(2) for x in range(14)], 1,
                                     NFFT=1024, overlap_fraction=None,
                                     view_freq_range=[max((0, e.low_freq-freq_padding)), min((240000, e.high_freq+freq_padding))],
                                     #view_freq_range=[0,4000],
@@ -316,7 +310,7 @@ def Main():
                     COMP_METHOD=COMP_METHOD, USE_MP=True)
         # plot
         ax1 = fig.add_subplot(2,2,3)
-        cesloc.PlotPesudoLikelihoodSlice(ax=ax1, show_title=False)
+        PlotPseudoLikelihoodSlice(cesloc, ax=ax1, show_title=True)
         PlotNodeLocations(ax1, sloc, key_node_list=cesloc.key_node_ids_used, key_color=fig_highlight_color)
 
         ## refine sum step ##
@@ -340,7 +334,7 @@ def Main():
                     COMP_METHOD=COMP_METHOD, USE_MP=True)
         # plot
         ax2 = fig.add_subplot(2,2,4)
-        cesloc.PlotPesudoLikelihoodSlice(ax=ax2, show_title=True)
+        PlotPseudoLikelihoodSlice(cesloc, ax=ax2, show_title=True)
         PlotNodeLocations(ax2, sloc, key_node_list=cesloc.key_node_ids_used, key_color=fig_highlight_color)
         # crosshairs to mark max point
         ax2.axvline(x=cesloc.max_C_pt[0], color=fig_highlight_color, lw=0.25, alpha=0.75)
@@ -485,7 +479,7 @@ def PlotNodeLocations(ax, sloc, plot_sym='wo', text_color='k', key_color='r', al
         alpha=tmp_alpha,
         horizontalalignment='center', \
         verticalalignment='bottom', \
-        transform=loc_misc.MPL_offset_transform(ax,0,2.5),\
+        transform=fig_misc.MPL_offset_transform(ax,0,2.5),\
         clip_on=True,
         path_effects=[matplotlib.patheffects.withStroke(linewidth=1.25, foreground="w", alpha=path_alpha)],
         fontsize=8,
@@ -523,7 +517,7 @@ def PlotKeySpectrogram(e, rs, fig, ax, padding, freq_padding, NFFT, overlap_frac
                     norm=norm,
                     interpolation='nearest')
     cbar = fig.colorbar(cax, drawedges=False)
-    cbar.solids.set_edgecolor("face") # workaroudn common problem with pdf viewers
+    cbar.solids.set_edgecolor("face") # workaround common problem with pdf viewers
     ax.grid(False)
     ax.axis('tight')
     if( view_freq_range != None ):
@@ -537,6 +531,24 @@ def PlotKeySpectrogram(e, rs, fig, ax, padding, freq_padding, NFFT, overlap_frac
             e.duration, freq_high-freq_low,
             edgecolor=selection_color, facecolor='none', linewidth=.25, alpha=1)
     ax.add_artist(rect)
+
+def PlotPseudoLikelihoodSlice(cesloc, ax=None, z_idx=None, show_title=True):
+    if( z_idx == None ):
+        z_idx = cesloc.max_C_pt_idxs[0]
+    if( ax is None ):
+        fig = plt.figure()
+        ax = plt.subplot(1,1,1)
+    im = ax.imshow(cesloc.C[z_idx,:,:], extent=cesloc.C_extent[0:4], origin='lower', interpolation='nearest')
+    ax.set_aspect('equal', 'datalim') # make the x and y scales the same
+    ax.grid(True)
+    cbar = plt.colorbar(im)
+    cbar.solids.set_edgecolor("face") # workaround common problem with pdf viewers
+    if( show_title ):
+        title_str = "Z = {0:.3f}".format(cesloc.z_vals[z_idx])
+        #title_str = "[{0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}] = {1:.3f}".format(cesloc.max_C_pt, cesloc.max_C_val)
+        ax.set_title(title_str)
+        ax.set_xlabel('X [m]')
+        ax.set_ylabel('Y [m]')
 
 
 #########################################################################
