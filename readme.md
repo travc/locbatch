@@ -112,7 +112,7 @@ Locbatch can also be run from the command line, though the exact command may dep
 ### Things to watch out for ###
 * Low frequency (< 200 Hz) sounds can cause problems with spatial aliasing.  Try applying additional smoothing to the cross-correlation-evelopes (cenvs) by adding (under the `[CES]` section):  
 `smooth_cenv_filter: *butter 3 low 100`  
-This will low-pass filter the cenvs (not the actual recordings) using a 3rd order Butterworth filter with cuttoff at 100 Hz.  
+This will low-pass filter (two-pass, forward & reverse) the cenvs using a 3rd order Butterworth filter with cuttoff at 100 Hz.  
 Alternatively, you could just select the portion of the event above 200 Hz.  The `[Event overrides]` `min_freq` option can be useful for that.
 * The error indicator/estimate value is very rough and not reliable!
 * ...
