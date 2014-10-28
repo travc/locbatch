@@ -42,17 +42,17 @@ The sound files may be specified with a metafile OR a filename_pattern.
 
 A metafile is the same as used by Syrinx, and lists **consecutive (no gaps)** recordings grouped by node.  The format (ignoring any blank lines, *italic* values vary) is something like:
 
-<code>
-annotationfile=<i>whatever</i><br>
-<i>node_01_file1.wav</i><br>
-<i>node_01_file2.wav</i><br>
-filegroup:<br>
-<i>node_02_file1.wav</i><br>
-<i>node_02_file2.wav</i><br>
-filegroup:<br>
-<i>node_03_file1.wav</i><br>
-<i>node_03_file2.wav</i><br>
-</code>  
+<pre>
+annotationfile=</i>whatever</i>
+<i>node_01_file1.wav</i>
+<i>node_01_file2.wav</i>
+filegroup:
+<i>node_02_file1.wav</i>
+<i>node_02_file2.wav</i>
+filegroup:
+<i>node_03_file1.wav</i>
+<i>node_03_file2.wav</i>
+</pre>
 Since Syrinx metafiles don't list node_ids, they are inferred from the order of the groups... `01`, `02` and `03` for this example.
 
 Alternatively, a filename_pattern may be given if the sound files are named in a sensible way.  Specifically, the files must include the node_id and they must sort in the correct (by time) order.  
