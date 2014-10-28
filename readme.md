@@ -43,7 +43,7 @@ The sound files may be specified with a metafile OR a filename_pattern.
 A metafile is the same as used by Syrinx, and lists **consecutive (no gaps)** recordings grouped by node.  The format (ignoring any blank lines, *italic* values vary) is something like:
 
 <pre>
-annotationfile=<i>whatever</i>
+annotationfile=<i>ingored</i>
 <i>node_01_file1.wav</i>
 <i>node_01_file2.wav</i>
 filegroup:
