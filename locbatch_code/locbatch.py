@@ -214,7 +214,7 @@ def Main():
     ## open the csv writer
     csvfile = open(os.path.join(outdir, out_filename),'wb')
     csvwriter = csv.writer(csvfile, dialect='excel')
-    csvwriter.writerow(['idx', 'soundfile', 'channel', 'start time', 'duration', 'low freq', 'high freq', 'X', 'Y', 'Z', 'C', 'err est', 'warning'])
+    csvwriter.writerow(['idx', 'soundfile', 'node', 'start time', 'duration', 'low freq', 'high freq', 'X', 'Y', 'Z', 'C', 'err est', 'warning'])
 
     # Create Pool of worker processes
     mppool.CreateProcessPool(cfg.get('System','num_processes'))
