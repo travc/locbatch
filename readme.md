@@ -90,7 +90,7 @@ Finally, it specifies various options for how the localization is to be computed
 Two fiarly well commented example configuration files are included and should be used as a guide (one for Syrinx annotations, one for Raven):  
 [locbatch_syrinx.cfg](locbatch_syrinx.cfg)  
 [locbatch_raven.cfg](locbatch_raven.cfg)  
-The [locbatch_code/default.cfg](../locbatch_code/default.cfg) file gives all the possible options you can set.
+The [locbatch_code/default.cfg](locbatch_code/default.cfg) file gives all the possible options you can set.
 
 Locbatch is intended to be run by creating a new config file (normally by copying, renaming an editing and existing one) for each new batch of localizations.  This way, the documentation of exactly what settings were used will be kept along with the results.  Any options not set in the config file will be set from the [locbatch_code/default.cfg](../locbatch_code/default.cfg) file.
 
