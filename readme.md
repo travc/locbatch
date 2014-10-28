@@ -1,5 +1,10 @@
 # Locbatch Documentation #
 
+Locbatch is a program to localize sounds recorded by arrays of microphones.  Specifically, it is being used (I hope) to localize bird calls recorded by arrays of microphones distributed over a relatively wide area (10s to a few 100s of meters) which are all plugged into a single multi-channel recorder.
+
+It implements the "Correlation-Envelope-Sum" (CES) method which is described in detail in section 2.5 of [my PhD dissertation](http://taylor0.biology.ucla.edu/~travc/dissertation.pdf) and breifly in section F of a JASA paper ([journal](http://scitation.aip.org/content/asa/journal/jasa/128/1/10.1121/1.3425729), [preprint](http://taylor0.biology.ucla.edu/bibliography/pdf/TravisJASA10.pdf)).  
+The primary benefit of CES over simple Correlation-Sum (aka. [Accumulated Correlaiton](http://www.ces.clemson.edu/~stb/research/acousticloc/) is that CES produces a much smoother likelihood space which so searching for the maximum is a lot easier, faster, and robust (likely to find the global max instead of a local one).  In theory, it trades off some precision, but I find that errors from surveying microphone positions and the variablity of sound propagation in air far exceed ths loss of precision... In fact, I would assert that CES will frequently be more accurate because it is less precise and therefore less sensitive to these sorts of errors.
+
 ### Some terminology ###
 Locbatch is based on code which was developed for a system where each node was actually a sub-array 
 with multiple microphones, so some of the terminology may be a bit different than expected.
@@ -102,6 +107,12 @@ This will low-pass filter the cenvs (not the actual recordings) using a 3rd orde
 Alternatively, you could just select the portion of the event above 200 Hz.  The `[Event overrides]` `min_freq` option can be useful for that.
 * The error indicator/estimate value is very rough and not reliable!
 * ...
+
+
+## Citation ##
+
+For now, please cite my dissertation and or the JASA paper linked above.  
+Hopefully I will get around to writing a little paper announcing this software officially.
 
 
 
