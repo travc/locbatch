@@ -4,8 +4,6 @@ __doc__ = """Correlation Envelope Sum Localization
     @TCC -- More usage documentation goes here"""
 
 import sys
-import getopt
-from sys import stderr,stdout
 import ConfigParser
 import time
 import math
@@ -42,7 +40,6 @@ class cGCCParams():
     EXCLUDE_INTRANODE = False
     KEY_MAX_C_VAL_THRESHOLD = -1000
     MAX_NUM_PASSES = 0
-    SMOOTH_CENV_FILTER_DESC = None # optionally apply extra smoothing to correlaiton envelopes
     USE_MP = True # false means don't use mp_pool even if it exists
 
     def __init__(self, config=None):
@@ -68,8 +65,6 @@ class cGCCParams():
         self.EXCLUDE_INTRANODE = config.getboolean('CES','GCC_exclude_intranode')
         self.KEY_MAX_C_VAL_THRESHOLD = config.getfloat('CES','GCC_key_max_c_val_threshold')
         self.MAX_NUM_PASSES = config.getint('CES','GCC_max_num_passes')
-        if( config.has_option('CES','smooth_cenv_filter') ):
-            self.SMOOTH_CENV_FILTER_DESC = config.get('CES','smooth_cenv_filter')
         if( config.has_option('CES','GCC_use_multiprocessing') ):
             self.USE_MP = config.getboolean('CES','GCC_use_multiprocessing')
 
@@ -335,11 +330,11 @@ class cCESLoc():
         # Optional additional smoothing of envelopes
         # useful for high freq sounds and/or error in node positions
         # @TCC -- move this to the worker function ??
-        if( params.SMOOTH_CENV_FILTER_DESC != None and
-                params.SMOOTH_CENV_FILTER_DESC != "" and
-                params.SMOOTH_CENV_FILTER_DESC.lower() != "none" ):
-            LOG.info("Additional cenv smoothing: {}".format(params.SMOOTH_CENV_FILTER_DESC))
-            (a,b) = loc_misc.CreateFilter(FS, params.SMOOTH_CENV_FILTER_DESC)
+        if( event.smooth_cenv_filter != None and
+                event.smooth_cenv_filter != "" and
+                event.smooth_cenv_filter.lower() != "none" ):
+            LOG.info("Additional cenv smoothing: {}".format(event.smooth_cenv_filter))
+            (a,b) = loc_misc.CreateFilter(FS, event.smooth_cenv_filter)
             for gcc in self.gccs:
                 gcc['cenv'] = filtfilt.filtfilt(b, a, gcc['cenv'])
         return True

@@ -388,10 +388,10 @@ def Main():
         s += u"duration: {0.duration:.3f} s\n".format(e)
         s += u"low  freq: {0:g} hz\nhigh freq: {1:g} hz\n".format(e.low_freq, e.high_freq)
         s += u"filter description: {0:s}\n".format(e.filter_desc)
-        if( cfg.has_option('CES','smooth_cenv_filter') and 
-            cfg.get('CES', 'smooth_cenv_filter') != '' and
-            cfg.get('CES', 'smooth_cenv_filter').lower() != 'none' ):
-            s += u"additional cenv smoothing filter: {}\n".format(cfg.get('CES', 'smooth_cenv_filter'))
+        if( e.smooth_cenv_filter is not None and 
+                e.smooth_cenv_filter != '' and
+                e.smooth_cenv_filter != 'none' ):
+            s += u"additional cenv smoothing filter: {}\n".format(e.smooth_cenv_filter)
         s += u"temperature / RH: {0.temperature:g}{1:s}C / {0.RH:g}%\n".format(e, u'\N{DEGREE SIGN}')
         s += u"key C val thresh: {0:g}\n".format(cfg.getfloat('CES','GCC_key_max_c_val_threshold'))
         s += u"all key nodes: {0:s}\n".format(",".join(sorted(cesloc.key_node_ids_used)))

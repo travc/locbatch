@@ -40,22 +40,18 @@ class cEvent():
     annotation_type = None # 'syrinx' or eventually 'raven', 'praat', ect.
     time_is_global = True  # is the start_time relative to start of rec_session or file
     rec_session_identifier = None # events with same rec_session_identifier can use same rec_session instance
-
     name = None # just a label
     idx = None # numeric identifier
-
     start_time = None # start time of event in seconds (assuming nominal FS)
     duration = None # duration in seconds (assuming nominal FS)
-
     node_id = None
     channel = None
-
     filter_desc = None # None is acceptable value
     nodeloc_filename = None # file with microphone locations
-
     temperature = None # temperature in C required for computing speed of sound
     RH = None  # relative humidity in % required for computing speed of sound
-
+    create_filter_order = None # order of filter to create from high and low freq (0 or None to disable)
+    smooth_cenv_filter = None # optional additional smoothing of cross-correlation envelopes
     # any addtional fields/values included in the orginal annotation file (a dictionary)
     values_from_file = {}
 
@@ -73,7 +69,7 @@ class cEvent():
             rv = getattr(self,attr_name)
         except AttributeError:
             pass
-        if( rv == None ):
+        if( rv is None ):
             rv = self.GetDefaultForAttr(attr_name)
         return rv
 
@@ -94,17 +90,20 @@ class cEvent():
             rv = config.get('Event defaults','nodeloc_filename')
         elif( attr_name == 'exclude_nodes' ):
             rv = config.get('Event defaults','exclude_nodes')
+        elif( attr_name == 'create_filter_order' ):
+            rv = config.get('Event defaults','create_filter_order')
+        elif( attr_name == 'smooth_cenv_filter' ):
+            rv = config.get('Event defaults','smooth_cenv_filter')
         return rv
 
     def GenerateDefaultFilterDesc(self):
-        if( config.getboolean('Event defaults', 'create_filter_from_freq_range') ):
-            order = config.getint('Event defaults', 'create_filter_order')
-            if( order <= 0 ):
-                LOG.error("create_filter_order must be > 0")
-                sys.exit(2)
-            return '*butter {0:d} band {1:.1f} {2:.1f}'.format(order, self.low_freq, self.high_freq)
-        else:
-            return StrOrNone(config_get_type(config, 'Event defaults', 'default_filter'))
+        if( self.create_filter_order is not None and
+            self.create_filter_order != '' and
+            self.create_filter_order.lower() != 'none' ):
+            order = int(self.create_filter_order)
+            if( order > 0 ):
+                return '*butter {0:d} band {1:.1f} {2:.1f}'.format(order, self.low_freq, self.high_freq)
+        return StrOrNone(config.get('Event defaults', 'default_filter'))
 
     def FillInDefaults(self, config):
         #name = None  # no default, not required
@@ -119,6 +118,7 @@ class cEvent():
         self.channel = self.Get('channel')
         assert( self.channel != None )
         #filter_desc = None # default, not required
+        self.create_filter_order = self.Get('create_filter_order') # must be loaded before filter_desc
         self.filter_desc = self.Get('filter_desc')
         #nodeloc_filename = None # default, required
         self.nodeloc_filename = self.Get('nodeloc_filename')
@@ -130,6 +130,7 @@ class cEvent():
         self.RH = self.Get('RH')
         assert( self.RH != None )
         self.exclude_nodes = self.Get('exclude_nodes')
+        self.smooth_cenv_filter = self.Get('smooth_cenv_filter')
         ## overrides from config
         if( config.has_option('Event overrides', 'min_freq') ):
             value = config.getfloat('Event overrides', 'min_freq')
@@ -188,6 +189,12 @@ def ReadSyrinxAnnotationsFile(cfg, events_filename):
             if( 'rh' in fieldnames ):
                 e.RH = row['rh']
                 del row['rh']
+            if( 'create_filter_order' in fieldnames ):
+                e.create_filter_order = row['create_filter_order']
+                del row['create_filter_order']
+            if( 'smooth_cenv_filter' in fieldnames ):
+                e.smooth_cenv_filter = row['smooth_cenv_filter']
+                del row['smooth_cenv_filter']
             # any addtional fields/values included in the orginal annotation file (a dictionary)
             e.values_from_file.update(row)
             # fill in defaults
@@ -246,6 +253,12 @@ def ReadRavenAnnotationsFile(cfg, events_filename):
             if( 'rh' in fieldnames ):
                 e.RH = row['rh']
                 del row['rh']
+            if( 'create_filter_order' in fieldnames ):
+                e.create_filter_order = row['create_filter_order']
+                del row['create_filter_order']
+            if( 'smooth_cenv_filter' in fieldnames ):
+                e.smooth_cenv_filter = row['smooth_cenv_filter']
+                del row['smooth_cenv_filter']
             # required columns
             e.start_time = float(row['begin time (s)'])
             del row['begin time (s)']
