@@ -124,6 +124,9 @@ Alternatively, you could just select the portion of the event above 200 Hz.  The
 For now, please cite my dissertation and or the JASA paper linked above.  
 Hopefully I will get around to writing a little paper announcing this software officially.
 
+## Acknowlegements ##
+
+The example data was kindly provided by Gail L. Patricelli and Alan H. Krakauer at UC Davis ([lab website](http://www.eve.ucdavis.edu/gpatricelli/index.html)).
 
 
  
