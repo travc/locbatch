@@ -9,6 +9,10 @@
 * [Installing](#installing)
 * [Usage](#usage)
   * [Input Files](#input-files)
+    * [Sound files](#sound-files)
+    * [Microphone location file](#microphone-location-file)
+    * [Annotation file](#annotation-file)
+    * [Configuration file](#configuration-file)
   * [Running](#running)
   * [Interpreting Results](#interpreting-results)
 * [Citation](#citation)
@@ -38,11 +42,10 @@ I suggest just using the [Anaconda Python distribution](https://store.continuum.
 ### Input files ###
 
 The input files locbatch needs are:
-* a collection of recordings/soundfiles
-* (optional) a Syrinx-like metafile grouping consecutive (segmented) soundfiles 
-* a microphone locations file
-* an annotations file
-* a configuration file
+* [Sound files](#sound-files) (a collection of recordings and (optionally) a Syrinx-like metafile grouping consecutive (segmented) soundfiles)
+* [Microphone location file](#microphone-location-file)
+* [Annotation file](#annotation-file)
+* [Configuration file](#configuration-file)
 
 The input files should (probably) all be in the same directory.
 
