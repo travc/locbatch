@@ -2,7 +2,7 @@
 
 sox +bash magic
 ------
-Extrat a bit (first 20 sec here) of an audio file.
+Extrat a bit (first 20 sec here) of (nodes 01-14) audio files.
 ```bash
 for n in $(seq -f "%02g" 1 14); do sox ../20120410_063059_${n}.wav foo_$n.wav trim 0 20 ; done
 ```
