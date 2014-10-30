@@ -5,10 +5,14 @@
 > plugged into a single multi-channel recorder.
 
 ## Table of Contents ##
-* [Introduction](#Introduction)
-* [Installing](#Installing)
-* [Usage](#Usage)
-* [Acknowlegements](#Acknowlegements)
+* [Introduction](#introduction)
+* [Installing](#installing)
+* [Usage](#usage)
+  * [Input Files](#input-files)
+  * [Running](#running)
+  * [Interpreting Results](#interpreting-results)
+* [Citation](#citation)
+* [Acknowlegements](#acknowlegements)
 
 ## Introduction ##
 Locbatch implements the "Correlation-Envelope-Sum" (CES) method which is described in detail in section 2.5 of [my PhD dissertation](http://taylor0.biology.ucla.edu/~travc/dissertation.pdf) and breifly in section F of a JASA paper ([journal](http://scitation.aip.org/content/asa/journal/jasa/128/1/10.1121/1.3425729), [preprint](http://taylor0.biology.ucla.edu/bibliography/pdf/TravisJASA10.pdf)).  
