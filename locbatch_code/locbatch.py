@@ -50,8 +50,7 @@ LOG = logging.getLogger(__name__)
 ## Figure parameters (matplotlib settings)
 mpl.rcdefaults()
 params = {
-    'figure.figsize': (9, 6),
-    'figure.dpi': 100,
+    'figure.figsize': (10, 7.5),
     'figure.facecolor': 'white',
     #'image.cmap': 'YlGnBu', # set below with value from config
 
@@ -157,7 +156,7 @@ def Main():
         # default outdir is the basename of the cfg_file (under the same directory as the cfg_file)
         tmp = os.path.split(os.path.abspath(cfg_filename))[0]
         outdir = os.path.splitext(os.path.basename(cfg_filename))[0]
-        outdir = os.path.join(tmp, outdir)
+        outdir = os.path.join(tmp, outdir+'_lbresults')
     LOG.info("outdir = '%s'",outdir)
     # create outdir if needed
     try:
@@ -177,7 +176,9 @@ def Main():
 
     # have to add to "Event defaults" section of config so it can be filled into each event object
     cfg.set('Event defaults','data_path', data_path)
-    cfg.set('Event defaults','nodeloc_filename', cfg.get('Files','mics_filename'))
+    cfg.set('Event defaults','nodeloc_filename', os.path.realpath(os.path.join(data_path,cfg.get('Files','mics_filename'))))
+#    cfg.set('Event defaults','soundfile', cfg.get('Files','soundfile'))
+#    cfg.set('Event defaults','soundfile pattern', cfg.get('Files','soundfile pattern'))
 
     # matplotlib colormap
     mpl.rcParams['image.cmap'] = cfg.get('Fig','colormap')
@@ -380,6 +381,9 @@ def Main():
             err_est_thresh = None
 
         # text (use unicode for special symbols)
+        relpath_start = os.getcwd()
+        if( data_path is not None and data_path != '' ):
+            relpath_start = os.path.realpath(data_path)
         s = u""
         s += u"name: {0.name:s}\n".format(e)
         s += u"idx: {:d}\n".format(e.idx)
@@ -397,12 +401,12 @@ def Main():
         s += u"all key nodes: {0:s}\n".format(",".join(sorted(cesloc.key_node_ids_used)))
         s += u"data dir: {0:s}\n".format(data_path)
         if( hasattr(e,'soundfile') ):
-            s += u"soundfile: {0:s}\n".format(e.soundfile)
+            s += u"soundfile: {0:s}\n".format(os.path.relpath(e.soundfile, relpath_start))
         if( hasattr(e,'metafile') ):
-            s += u"metafile: {0:s}\n".format(e.metafile)
+            s += u"metafile: {0:s}\n".format(os.path.relpath(e.metafile, relpath_start))
         if( hasattr(e,'soundfile_pattern') ):
             s += u"soundfile_pattern: {0:s}\n".format(e.soundfile_pattern)
-        s += u"mics file: {0:s}\n".format(e.nodeloc_filename)
+        s += u"mics file: {0:s}\n".format(os.path.relpath(e.nodeloc_filename, relpath_start))
         s += u"\nMax point: [{0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}] = {1:.3f}\n\n".format(cesloc.max_C_pt, cesloc.max_C_val)
         s += u"Error indicator: {:.2f} m (thresh={:.3f}, c={:.3f})\n".format(err_est_d, err_thresh_factor, err_est_thresh)
         if( warning_string ):

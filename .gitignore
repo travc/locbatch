@@ -44,3 +44,6 @@ Temporary Items
 
 # Python bytecode files
 *.pyc
+
+# locbatch results (from examples)
+examples/*_lbresults/

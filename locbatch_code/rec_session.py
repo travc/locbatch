@@ -168,7 +168,7 @@ class cWiredRecSession(cRecSession) :
         self.filegroups = OrderedDict()
         cur_node_id = 1
         base_path = os.path.dirname(metafile)
-        with open(metafile, 'rU') as f:
+        with open(os.path.realpath(metafile), 'rU') as f:
             for l in f:
                 l = l.strip()
                 if( not l ):
@@ -182,7 +182,7 @@ class cWiredRecSession(cRecSession) :
                         cur_node_id += 1
                     current_filegroup = []
                 else:
-                    current_filegroup.append({'file':os.path.join(base_path,l)})
+                    current_filegroup.append({'file':os.path.realpath(os.path.join(base_path,l))})
                     # @TCC maybe read params here too?
         # make sure the last filegroup is appended to the list
         if( len(current_filegroup) > 0 ):
@@ -191,6 +191,7 @@ class cWiredRecSession(cRecSession) :
         self._init_file_params()
 
     def init_from_filename_pattern(self, filename_pattern, node_ids):
+        filename_pattern = os.path.realpath(filename_pattern)
         LOG.info("Creating Rec Session from pattern '{}'".format(filename_pattern))
         self.filegroups = OrderedDict()
         self.filename_pattern = filename_pattern
@@ -201,15 +202,9 @@ class cWiredRecSession(cRecSession) :
             for nid in node_ids:
                 self.filegroups[nid] = []
                 fnp = self.filename_pattern.format(node_id=nid)
-                tmp = fnp.find('*')
-                if( tmp == -1 ):
-                    raise RuntimeError("finename pattern must have '*' wildcard character")
                 flist = sorted(glob.glob(fnp))
                 for f in flist:
-                    #ftmp = list(f)
-                    #nid = ftmp[tmp:-(len(self.filename_pattern)-tmp-1)]
-                    #nid = "".join(nid)
-                    self.filegroups[nid].append({'file':f})
+                    self.filegroups[nid].append({'file':os.path.realpath(f)})
                 LOG.debug("filegroup['{}'] {}".format(nid, self.filegroups[nid]))
             if( len(self.filegroups) == 0 ):
                 raise RuntimeError("No data files found matching filename pattern '%s'"%self.filename_pattern)
@@ -289,6 +284,7 @@ class cWiredRecSession(cRecSession) :
 
     def FTime2GTime(self, node_id, soundfile, ftime):
         """Return the global time which corresponds to the time (ftime) in the specific file (soundfile)"""
+        soundfile = os.path.realpath(soundfile)
         gtime = 0.0
         found = False
         for f in self.filegroups[node_id]:
@@ -299,8 +295,7 @@ class cWiredRecSession(cRecSession) :
             else:
                 gtime += f['num_samples'] / float(f['sample_rate'])
         if( not found ):
-            LOG.error("Did not find file '{}' in recording session".format(soundfile))
-            sys.exit(2)
+            raise RuntimeError("Did not find file '{}' in recording session".format(soundfile))
         LOG.debug('node {}, file {}, ftime {} -> gtime {}'.format(node_id, soundfile, ftime, gtime))
         return gtime
 

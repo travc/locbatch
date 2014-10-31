@@ -87,7 +87,7 @@ class cEvent():
         elif( attr_name == 'RH' ):
             rv = config.getfloat('Event defaults','RH')
         elif( attr_name == 'nodeloc_filename' ):
-            rv = config.get('Event defaults','nodeloc_filename')
+            rv = os.path.realpath(config.get('Event defaults','nodeloc_filename'))
         elif( attr_name == 'exclude_nodes' ):
             rv = config.get('Event defaults','exclude_nodes')
         elif( attr_name == 'create_filter_order' ):
@@ -232,8 +232,8 @@ def ReadRavenAnnotationsFile(cfg, events_filename):
             e.values_from_file = {}
             e.annotation_type = 'raven'
             e.time_is_global = False
-            e.rec_session_identifier = cfg.get('Files','soundfile_pattern') # events with same rec_session_identifier can use same rec_session instance
-            e.soundfile_pattern = cfg.get('Files','soundfile_pattern')
+            e.rec_session_identifier = cfg.get('Event defaults','soundfile_pattern') # events with same rec_session_identifier can use same rec_session instance
+            e.soundfile_pattern = cfg.get('Event defaults','soundfile_pattern')
             e.idx = len(events)+1 # 1-based index
             e.name = os.path.basename(events_filename)+' : '+str(row['selection'])
             # optional important columns
@@ -241,12 +241,12 @@ def ReadRavenAnnotationsFile(cfg, events_filename):
                 e.node_id = row['node_id']
                 del row['node_id']
             else:
-                e.node_id = cfg.get('Files','node_id')
+                e.node_id = cfg.get('Event defaults','node_id')
             if( 'soundfile' in fieldnames ):
                 e.soundfile = row['soundfile']
                 del row['soundfile']
             else:
-                e.soundfile = cfg.get('Files','soundfile')
+                e.soundfile = os.path.realpath(os.path.join(cfg.get('Event defaults', 'data_path'),cfg.get('Event defaults','soundfile')))
             if( 'temperature' in fieldnames ):
                 e.temperature = row['temperature']
                 del row['temperature']
