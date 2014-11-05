@@ -88,7 +88,7 @@ For example, the filename_pattern `20120410_*_{node_id}.wav` would work if your 
 
 #### Microphone location file ####
 A file giving the position of each node/microphone is also required.  
-The preferred format is one line per node listing: `node_id channel X Y Z` where `X`, `Y` and `Z` are position values in meters.  (NOTE: Channel will always be 1 for wired arrays.)
+The preferred format is one line per node listing: `node_id channel X Y Z` where `X`, `Y` and `Z` are position values in meters. NOTE: `channel` will always be `1` for wired arrays.
 Locbatch will also accept a file which just has one `X Y` pair per line,
 from which it will infer the `node_id` from the line number (`01`, `02`, ect.) and set all the `Z` values to 0.
 
