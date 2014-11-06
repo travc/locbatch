@@ -154,7 +154,7 @@ def ShortenPath(path):
     return path
 
 
-def range_string_to_indicies(string, list_len, inclusive=True, sort_unique=True, ones_based=False):
+def range_string_to_indicies(string, list_len, inclusive=True, sort_unique=True, ones_based=False, zero_pad=0):
     """ converts a string like "-2,4,10-13,20-" into a list of indicies [1,2,10,11,12,13,20,21,22...]
         if string is None or 'all', will return the complete list of indicies (0 to list_len-1)
         ones_based=True makes it 1-based (start with 1 end with list_len)
@@ -190,6 +190,9 @@ def range_string_to_indicies(string, list_len, inclusive=True, sort_unique=True,
             idxs.extend(x)
         if( sort_unique ):
             idxs = sorted(set(idxs)) # remove duplicates and sort
+        if( zero_pad > 0 ):
+            for i in range(len(idxs)):
+                idxs[i] = str(idxs[i]).zfill(zero_pad)
     return idxs
 
 

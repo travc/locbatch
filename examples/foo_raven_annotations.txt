@@ -1,6 +1,6 @@
-Selection	View	Channel	Begin Time (S)	End Time (S)	Low Freq (Hz)	High Freq (Hz)	Max Power (dB)	Max Time (S)	Max Freq (Hz)	smooth_cenv_filter
+Selection	View	Channel	Begin Time (S)	End Time (S)	Low Freq (Hz)	High Freq (Hz)	Max Power (dB)	Max Time (S)	Max Freq (Hz)	smooth_cenv_window
 1	Spectrogram 1	1	0.914	1.585	2000	3800	ignored	ignored	ignored	
-1b	Spectrogram 1	1	0.914	1.585	2000	3800	96.0	1376.311	689.1	*butter 3 low 100
+1b	Spectrogram 1	1	0.914	1.585	2000	3800	96.0	1376.311	689.1	75
 2	Spectrogram 1	1	0.926	1.114	3000	3500	96.0	1376.311	689.1	
 3	Spectrogram 1	1	1.833	1.928	1900	2200	96.0	1376.311	689.1	
 4	Spectrogram 1	1	1.209	1.394	3000	4500	96.0	1376.311	689.1	

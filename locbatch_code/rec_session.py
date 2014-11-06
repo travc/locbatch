@@ -326,11 +326,11 @@ class cWiredRecSession(cRecSession) :
         start_samp = int(NP.round(gtime*self.nominal_FS))
         # if start is before 0, pre-pad with 0s
         if( start_samp < 0 ):
-            LOG.warn("Requesting data before start of recording")
+            LOG.warn("Requesting data before start of recording ({} samples)".format(-1*start_samp))
             if( hasattr(channels, "__len__") ):
-                data = NP.zeros((-1*fsamp, len(channels)))
+                data = NP.zeros((-1*start_samp, len(channels)))
             else:
-                data = NP.zeros(-1*fsamp)
+                data = NP.zeros(-1*start_samp)
             start_samp = 0
         file_idx = 0
         foffset = 0

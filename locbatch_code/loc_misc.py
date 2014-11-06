@@ -8,9 +8,11 @@ import sys
 import math 
 import ConfigParser
 import warnings
+from collections import OrderedDict
 
 import numpy as NP
 from scipy.signal import lfilter, butter, BadCoefficients # needed for filtering
+import filtfilt
 
 from misc_utils import list_unique, issequence
 
@@ -30,6 +32,21 @@ def Cart2Pol(x,y): # 2D
     r = NP.sqrt(x*x + y*y)
     th = NP.arctan2(y,x)
     return th,r
+
+def smoothListGaussian(list, strippedXs=False, degree=5):
+    window=degree*2-1
+    weight=numpy.array([1.0]*window)
+    weightGauss=[]
+    for i in range(window):
+        i=i-degree+1
+        frac=i/float(window)
+        gauss=1/(numpy.exp((4*(frac))**2))
+        weightGauss.append(gauss)
+    weight=numpy.array(weightGauss)*weight
+    smoothed=[0.0]*(len(list)-window)
+    for i in range(len(smoothed)):
+            smoothed[i]=sum(numpy.array(list[i:i+window])*weight)/sum(weight)
+    return smoothed
 
 
 #### Acoustics related general #####################################
@@ -72,8 +89,36 @@ def CalcSpeedOfSound(T, Rh=50, P=101.325):
     C = C1 + C2 - C3  # speed
     return C
 
+def GenerateFilterDescription(event):
+    '''return a filter description string based on create_filter_order, low_freq, and high_freq
+    if create_filter_order is unset or <= 0, returns None
+    set both low_freq and high_freq for a bandpass filter
+    set only high_freq for a lowpass filter
+    set only low_freq for a highpass filter
+    if neither low_freq nor high_freq is set, return None
+    '''
+    rv = None
+    filter_order = event['create_filter_order']
+    if( filter_order is not None and filter_order > 0 ):
+        low_freq = event['low_freq']
+        high_freq = event['high_freq']
+        if( low_freq is not None and low_freq > 0 ):
+            if( high_freq is not None and high_freq > 0 ):
+                rv = '*butter {0:d} band {1:.1f} {2:.1f}'.format(filter_order, low_freq, high_freq)
+            else:
+                rv = '*butter {0:d} high {1:.1f}'.format(filter_order, low_freq)
+        elif( high_freq is not None and high_freq > 0 ):
+            rv = '*butter {0:d} low {1:.1f}'.format(filter_order, high_freq)
+    return rv
+    
+def CreateFilterFunc(FS, filter_desc=None, filter_func=lfilter):
+    filter = _CreateFilter(FS, filter_desc)
+    if( filter ):
+        return lambda x: filter_func(filter[1], filter[0], x)
+    else:
+        return None
 
-def CreateFilter(FS, filter_desc=None):
+def _CreateFilter(FS, filter_desc=None):
     # create a filter ([a,b] coefficients) from the filter_desc string, 
     # or take filter_desc as a filename and load values
     if( filter_desc == None ):
@@ -86,7 +131,7 @@ def CreateFilter(FS, filter_desc=None):
             order = int(l[1])
             kind = l[2]
             freq = l[3:]
-            filter = CreateButterFilter(FS, order, kind, freq)
+            filter = _CreateButterFilter(FS, order, kind, freq)
         else:
             # assume filter_desc is a filter filename (2 lines of whitespace separated numbers sepcifing A and B)
             print >>sys.stderr, "Loading filter from '{0}'".format(filter_desc)
@@ -99,7 +144,7 @@ def CreateFilter(FS, filter_desc=None):
     return filter
 
 
-def CreateButterFilter(FS, order, kind, freq):
+def _CreateButterFilter(FS, order, kind, freq):
     """create a butterworth filter
          FS: sample frequency
          order: order of filter to create 
@@ -136,7 +181,59 @@ def CreateButterFilter(FS, order, kind, freq):
              break # done with while loop
     return [a,b]
 
+def extent_string_to_extent_from_sloc(sloc, extent_string):
+    base_extent = GetExtentFromSloc(sloc)
+    z_opts = OrderedDict([('mean', NP.mean([x[4] for x in sloc])),
+                          ('median', NP.median([x[4] for x in sloc])),
+                         ])
+    return _extent_string_to_extent(base_extent, extent_string, z_opts=z_opts)
 
+def extent_string_to_extent_from_point(point, extent_string):
+    base_extent = [point[0],point[0],point[1],point[1],point[2],point[2]]
+    return _extent_string_to_extent(base_extent, extent_string, z_opts=None)
+
+def _extent_string_to_extent(base_extent, extent_string, z_opts=None):
+    # convert a string giving extent and/or padding into an extent based on sloc
+    tmp = [x.strip() for x in extent_string.split(',')]
+    if( len(tmp) == 1 ):
+        assert tmp[0].startswith('+-'), "a length 1 extent string must start with '+-', got '{}'".format(tmp[0])
+        tmp = tmp*2
+    # expand '+-' notation
+    tmp2 = []
+    for t in tmp:
+        if( t.startswith('+-') ):
+            tmp2.append('-'+t[2:])
+            tmp2.append('+'+t[2:])
+        else:
+            tmp2.append(t)
+    tmp = tmp2
+    # Z if not specified
+    if( len(tmp) == 4 ):
+        if( z_opts is None ):
+            tmp.append('-0')
+            tmp.append('+0')
+        else:
+            tmp.append(z_opts.keys()[0])
+    # Z if an opt (like 'mean')
+    if( len(tmp) == 5 ):
+        if( tmp[4] in z_opts ):
+            tmp[4] = z_opts[tmp[4]]
+            tmp.append(tmp[4])
+        else:
+            raise RuntimeError("Failed to parse Z part of extent string '{}'".format(extent_string))
+    assert len(tmp) == 6, "Cannot understand extent string '{}'".format(extent_string)
+    # Apply '+' or '-' values
+    limits = list(base_extent)
+    for i,t in enumerate(tmp):
+        if( isinstance(t, basestring) and t[0] == '-' ):
+            limits[i] -= float(t[1:])
+        elif( isinstance(t, basestring) and t[0] == '+' ):
+            limits[i] += float(t[1:])
+        else:
+            limits[i] = float(t)
+    return limits
+    
+    
 def FindInSloc(node_id, channel, sloc, raise_on_fail=True):
     sloc_idx = None
     for i in range(len(sloc)):

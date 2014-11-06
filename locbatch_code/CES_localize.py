@@ -10,7 +10,7 @@ import math
 import logging
 
 import numpy as NP
-from scipy.signal import lfilter, decimate
+from scipy.signal import decimate
 import filtfilt
 
 ## local imports
@@ -38,7 +38,6 @@ class cGCCParams():
     SPEED_SOUND_ERROR_FACTOR = 0.01 # faction of speed of sound
     EXCLUDE_INTERNODE = False
     EXCLUDE_INTRANODE = False
-    KEY_MAX_C_VAL_THRESHOLD = -1000
     MAX_NUM_PASSES = 0
     USE_MP = True # false means don't use mp_pool even if it exists
 
@@ -63,7 +62,6 @@ class cGCCParams():
         self.SPEED_SOUND_ERROR_FACTOR = config.getfloat('CES','speed_of_sound_error_factor')
         self.EXCLUDE_INTERNODE = config.getboolean('CES','GCC_exclude_internode')
         self.EXCLUDE_INTRANODE = config.getboolean('CES','GCC_exclude_intranode')
-        self.KEY_MAX_C_VAL_THRESHOLD = config.getfloat('CES','GCC_key_max_c_val_threshold')
         self.MAX_NUM_PASSES = config.getint('CES','GCC_max_num_passes')
         if( config.has_option('CES','GCC_use_multiprocessing') ):
             self.USE_MP = config.getboolean('CES','GCC_use_multiprocessing')
@@ -74,8 +72,8 @@ class cCESLoc():
 
     # member variables ('declaring' to be explicit)
     event = None
-    session = None # loaded from event.msync_filename in DoCES
-    sloc = None # loaded from event.nodeloc_filename and possibly culled in DoCES
+    session = None
+    sloc = None
     gcc_params = None # cGCCParams instance (created from config in DoCES)
     speed_of_sound = None # computed from temperature and RH values of event in CompGCCs and reused in CompSum
 
@@ -106,11 +104,7 @@ class cCESLoc():
             allows aborting... returns False if aborted, True otherwise"""
         self.sloc = sloc
         self.session = session
-        # Set the event's filter if needed
-        if not hasattr(event,'filter') or not event.filter :
-            LOG.info("Create filter "+str(event.filter_desc))
-            event.filter = loc_misc.CreateFilter(self.session.GetNominalFS(), event.filter_desc)
-
+        filter_func = loc_misc.CreateFilterFunc(self.session.GetNominalFS(), loc_misc.GenerateFilterDescription(event))
         if( isinstance(params, cGCCParams) ): # all good
             pass
         elif( not params ): # default values
@@ -121,7 +115,7 @@ class cCESLoc():
         # convience
         FS = self.session.GetNominalFS()
         #dur_samps = int(math.ceil((event.end_time - event.start_time)*FS))
-        dur_samps = int(event.duration*FS)
+        dur_samps = int(event['duration']*FS)
 
         # config options / values
         INTRA_NODE_LOC_ERROR = params.INTRA_NODE_LOC_ERROR 
@@ -129,7 +123,6 @@ class cCESLoc():
         SPEED_SOUND_ERROR_FACTOR = params.SPEED_SOUND_ERROR_FACTOR 
         EXCLUDE_INTERNODE = params.EXCLUDE_INTERNODE 
         EXCLUDE_INTRANODE = params.EXCLUDE_INTRANODE 
-        KEY_MAX_C_VAL_THRESHOLD = params.KEY_MAX_C_VAL_THRESHOLD 
         MAX_NUM_PASSES = params.MAX_NUM_PASSES 
         USE_MP = params.USE_MP 
 
@@ -138,7 +131,7 @@ class cCESLoc():
         tic = time.time() # timer 
 
         ## compute speed of sound from temperature and RH
-        self.speed_of_sound = loc_misc.CalcSpeedOfSound(event.temperature, event.RH)
+        self.speed_of_sound = loc_misc.CalcSpeedOfSound(event['temperature'], event['RH'])
 
         if( not USE_MP ): 
             # make sure global variable is assinged in this process if not using workers 
@@ -159,19 +152,22 @@ class cCESLoc():
                 else: # different nodes
                     r[i][j] += INTER_NODE_LOC_ERROR
                 r[i][j] /= self.speed_of_sound  # convert from meters to sec
+                # extra padding if smoothing cenv values to eliminate any possible edge effects (assumes window is in ms)
+                if( event['smooth_cenv_window'] != None and event['smooth_cenv_window'] > 0 ):
+                    r[i][j] += event['smooth_cenv_window']/1000.0/2.0 
                 # additional padding proportional to distance
                 r[i][j] *= (1+SPEED_SOUND_ERROR_FACTOR) 
                 r[j][i] = r[i][j]  # fill in symmeteric value
 
-        key_node = event.node_id
-        self.key_node_ids_used = [event.node_id]
-        key_channel = event.channel
+        key_node = event['node_id']
+        self.key_node_ids_used = [event['node_id']]
+        key_channel = event['channel']
 
         # need to determine if start_time is global time or time in (segmented) file
-        if( event.time_is_global ):
-            start_gtime = event.start_time
+        if( event['time_is_global'] ):
+            start_gtime = event['start_time']
         else:
-            start_gtime = self.session.FTime2GTime(key_node, event.soundfile, event.start_time)
+            start_gtime = self.session.FTime2GTime(key_node, event['soundfile'], event['start_time'])
 
         # bookkeeping variables
         cor_pairs_done = NP.zeros((len(sloc), len(sloc)))
@@ -226,8 +222,8 @@ class cCESLoc():
             length_samps = dur_samps
             key_data = self.session.ReadDataAtGTime(key_node, gtime, length_samps, 
                     channels=[key_channel], center_flag=True, length_in_samps=True)
-            if( event.filter ): # filter if the coefficents are defined
-                key_data = lfilter(event.filter[1], event.filter[0], key_data)
+            if( filter_func ): # filter if the coefficents are defined
+                key_data = filter_func(key_data)
             key_sloc_idx = loc_misc.FindInSloc(key_node, key_channel, sloc)
 
             # decimate @TCC TESTING
@@ -257,9 +253,9 @@ class cCESLoc():
                 for si in targets:
                     target_padding = math.ceil(r[key_sloc_idx][si]*FS) # padding to add to target in samples
                     result = mp_pool().apply_async( \
-                            WorkerCompGXCorrPair, [key_sloc_idx, si, key_data, target_padding, gtime, dur_samps, event.filter, decimate_factor] )
+                            WorkerCompGXCorrPair, [key_sloc_idx, si, key_data, target_padding, gtime, dur_samps, filter_func, decimate_factor] )
                     if( result is None ):
-                        LOG.error("RESULT IS NONE "+str([key_sloc_idx, si, key_data, target_padding, gtime, dur_samps, event.filter, decimate_factor]))
+                        LOG.error("RESULT IS NONE "+str([key_sloc_idx, si, key_data, target_padding, gtime, dur_samps, filter_func, decimate_factor]))
                         sys.exit(1)
                     else:
                         result_list.append(result)
@@ -270,7 +266,7 @@ class cCESLoc():
             else: # single process
                 for si in targets:
                     target_padding = math.ceil(r[key_sloc_idx][si]*FS) # padding to add to target in samples
-                    c = WorkerCompGXCorrPair(key_sloc_idx, si, key_data, target_padding, gtime, dur_samps, event.filter, decimate_factor)
+                    c = WorkerCompGXCorrPair(key_sloc_idx, si, key_data, target_padding, gtime, dur_samps, filter_func, decimate_factor)
                     cor.append(c)
 
             if( progress_callback != None ): 
@@ -286,7 +282,7 @@ class cCESLoc():
                 max_c_list.sort(key=lambda x : x[1])
 
             # all done?
-            if( key_max_c_val < KEY_MAX_C_VAL_THRESHOLD \
+            if( key_max_c_val < event['gcc_key_max_c_val_threshold'] \
                     or len(max_c_list) < 1 \
                     or (MAX_NUM_PASSES and pass_num >= MAX_NUM_PASSES) ):
                 done = 1
@@ -330,13 +326,11 @@ class cCESLoc():
         # Optional additional smoothing of envelopes
         # useful for high freq sounds and/or error in node positions
         # @TCC -- move this to the worker function ??
-        if( event.smooth_cenv_filter != None and
-                event.smooth_cenv_filter != "" and
-                event.smooth_cenv_filter.lower() != "none" ):
-            LOG.info("Additional cenv smoothing: {}".format(event.smooth_cenv_filter))
-            (a,b) = loc_misc.CreateFilter(FS, event.smooth_cenv_filter)
+        if( event['smooth_cenv_window'] != None and event['smooth_cenv_window'] > 0 ):
+            LOG.info("Additional cenv smoothing: convolve with {} ms hanning window".format(event['smooth_cenv_window']))
             for gcc in self.gccs:
-                gcc['cenv'] = filtfilt.filtfilt(b, a, gcc['cenv'])
+                w = NP.hanning(max((1, NP.round(event['smooth_cenv_window']*1000.0/self.speed_of_sound))))
+                gcc['cenv'] = NP.convolve(w/w.sum(), gcc['cenv'], mode='same')
         return True
 
 
@@ -505,7 +499,7 @@ class cCESLoc():
 
 ### global scope function ##########################################
 
-def WorkerCompGXCorrPair(key_sloc_idx, target_sloc_idx, key_data, r_offset_samp, start_gtime, dur_samps, filter_coefs, decimate_factor=0):
+def WorkerCompGXCorrPair(key_sloc_idx, target_sloc_idx, key_data, r_offset_samp, start_gtime, dur_samps, filter_func, decimate_factor=0):
     # actually compute cross-correlation for a pair of sensors
     # worker function (suitable for use with mp_pool worker processes) 
 
@@ -522,8 +516,8 @@ def WorkerCompGXCorrPair(key_sloc_idx, target_sloc_idx, key_data, r_offset_samp,
     length_samps = dur_samps + 2*r_offset_samp
     data = session.ReadDataAtGTime(target_sloc[0], gtime, length_samps, channels=[target_sloc[1]], \
                                                                     center_flag=True, length_in_samps=True)
-    if( filter_coefs ): # filter if the coefficents are defined
-        data = lfilter(filter_coefs[1], filter_coefs[0], data)
+    if( filter_func ): # filter if defined
+        data = filter_func(data)
 
     # decimate @TCC TESTING
     if( decimate_factor > 1 ):

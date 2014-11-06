@@ -16,9 +16,9 @@ import subprocess
 import errno
 import csv
 import logging
+import copy
 
 import numpy as NP
-from scipy.signal import lfilter
 
 # graphics
 import matplotlib as mpl
@@ -31,7 +31,7 @@ import mppool
 from mppool import mp_pool
 import misc_utils
 import rec_session
-import cEvent
+import event_factory
 import CES_localize
 import loc_misc
 import fig_misc # needed for PlotMultiSpecs and offset transform... TCC should move or at least cleanup
@@ -133,7 +133,7 @@ def Main():
     # set verbosity levels (in modules too)
     verbose_lvl = cfg.getint('Main','verbose')
     # @TCC TODO set log level in all the other modules
-    tmp = [LOG, rec_session.LOG, cEvent.LOG]
+    tmp = [LOG, rec_session.LOG, event_factory.LOG]
     if( verbose_lvl == 0 ):
         map(lambda x: x.setLevel(logging.WARNING), tmp)
     elif( verbose_lvl == 1 ):
@@ -145,13 +145,13 @@ def Main():
     ### ### ##########################################
 
     # more argument/config handling... filenames and paths
-    data_path = cfg.get('Files', 'data_path')
     cfg_filename = args.cfg_file.name
-    if( data_path is None or data_path == '' or data_path.strip().lower() == 'none' ):
-        data_path = os.path.split(cfg_filename)[0]
-    LOG.info("data path = '%s'",data_path)
+    base_data_path = os.path.split(cfg_filename)[0] # assume config file is in same directory as data
+    LOG.info("base data path = '%s'",base_data_path)
     # set outdir
-    outdir = cfg.get('Files', 'outdir')
+    outdir = None
+    if( cfg.has_option('Files', 'outdir') ):
+        outdir = cfg.get('Files', 'outdir')
     if( outdir is None or outdir == '' or outdir.lower() == 'none' ):
         # default outdir is the basename of the cfg_file (under the same directory as the cfg_file)
         tmp = os.path.split(os.path.abspath(cfg_filename))[0]
@@ -167,18 +167,14 @@ def Main():
         else:
             raise
     # output filenames (not including the directory part which is outdir)
-    out_filename = cfg.get('Files', 'out_filename')
+    out_filename = None
+    if( cfg.has_option('Files', 'out_filename') ):
+        out_filename = cfg.get('Files', 'out_filename')
     if( out_filename is None or out_filename == '' or out_filename.lower() == 'none' ):
         if( outdir == '.' or outdir == '.\\' or outdir == './' ):
             out_filename = os.path.splitext(os.path.basename(cfg_filename))[0]+'_results_'+cfg.get('Files','events').strip().replace(' ','')+'.csv'
         else:
             out_filename = 'results_'+cfg.get('Files','events').strip().replace(' ','')+'.csv'
-
-    # have to add to "Event defaults" section of config so it can be filled into each event object
-    cfg.set('Event defaults','data_path', data_path)
-    cfg.set('Event defaults','nodeloc_filename', os.path.realpath(os.path.join(data_path,cfg.get('Files','mics_filename'))))
-#    cfg.set('Event defaults','soundfile', cfg.get('Files','soundfile'))
-#    cfg.set('Event defaults','soundfile pattern', cfg.get('Files','soundfile pattern'))
 
     # matplotlib colormap
     mpl.rcParams['image.cmap'] = cfg.get('Fig','colormap')
@@ -186,23 +182,22 @@ def Main():
 
     ### ### ##########################################
 
-    ## read microphone/node/sensor locations file ##
-    base_sloc = CreateSLocFromPatNodeloc(os.path.join(data_path, cfg.get('Files','mics_filename')))
-
     ## Read the annotation file ##
-    events_filename = cfg.get('Files', 'events_filename')
+    events_filename = os.path.join(base_data_path,cfg.get('Files', 'events_filename'))
     events_mode = cfg.get('Files', 'mode')
     rs = None # rec_session will get loaded per event if needed
+    event_fact = event_factory.event_factory(cfg.items('Event defaults'), cfg.items('Event overrides'))
     if( events_mode.lower() == 'syrinx' ):
-        events = cEvent.ReadSyrinxAnnotationsFile(cfg, os.path.join(data_path,events_filename))
+        events = event_fact.read_syrinx_annotations_file(events_filename, {'data_path':base_data_path})
     elif( events_mode.lower() == 'raven' ):
-        events = cEvent.ReadRavenAnnotationsFile(cfg, os.path.join(data_path,events_filename))
+        events = event_fact.read_raven_annotations_file(events_filename, {'data_path':base_data_path})
     else:
         raise RuntimeError("Unknown annotation file mode '{}'".format(events_mode))
-    assert len(events) > 0, "No events specified in annotations file '{}'".format(os.path.join(data_path,events_filename))
+    assert len(events) > 0, "No events specified in annotations file '{}'".format(events_filename)
 
     ## parse config events (index) list (the list of event idxs to localize)
-    event_idxs = misc_utils.range_string_to_indicies(cfg.get('Files','events'), len(events), inclusive=True, sort_unique=True, ones_based=True)
+    event_idxs = misc_utils.range_string_to_indicies(cfg.get('Files','events'), len(events), 
+                            inclusive=True, sort_unique=True, ones_based=True)
     LOG.info("Event indicies to localize = %s",str(event_idxs))
     # error check event_idxs and output informative error if needed
     for x in event_idxs:
@@ -210,7 +205,7 @@ def Main():
             LOG.error("Event indexes must be >0 : offending value = %s",str(x))
             exit(2)
         if( x > len(events) ):
-            LOG.error("Event index '{}' > number of events ({}) in annotations file '{}'".format(x, len(events), os.path.join(data_path,events_filename)))
+            LOG.error("Event index '{}' > number of events ({}) in annotations file '{}'".format(x, len(events), events_filename))
             exit(2)
 
     ## open the csv writer
@@ -222,39 +217,52 @@ def Main():
     mppool.CreateProcessPool(cfg.get('System','num_processes'))
 
     ## localization for each event in event_idxs
+    last_mics_filename = None # to avoid re-loading if not needed
     for event_idx in event_idxs:
         e = events[event_idx-1]
-
-        fig_out_filename_base = "event_{:04d}_{:010.4f}_{:s}".format(e.idx, e.start_time, e.node_id)
+        fig_out_filename_base = "event_{:04d}_{:010.4f}_{:s}".format(e['idx'], e['start_time'], e['node_id'])
         LOG.info("-"*10+" Processing: "+str(fig_out_filename_base)+" "+"-"*10)
+        data_path = base_data_path
+        if( e['data_path'] is not None ):
+            data_path = e['data_path']
         LOG.debug(str(e))
 
+        # @TCC TEMP DEBUGGING
+        s = []
+        for k,v in e.iteritems():
+            s.append("{} : {}".format(k,v))
+        LOG.info("EVENT...\n\t"+"\n\t".join(s))
+        
+        # read microphone/node/sensor locations file
+        mics_filename = os.path.join(data_path, e['mics_filename'])
+        if( last_mics_filename != mics_filename ):
+            base_sloc = CreateSLocFromPatNodeloc(mics_filename)
+            last_mics_filename = mics_filename
+
         # create the rec_session if needed
-        if( rs is None or os.path.join(data_path, e.rec_session_identifier) != rs.session_identifier ):
+        if( rs is None or os.path.join(data_path, e['rec_session_identifier']) != rs.session_identifier ):
             rs = rec_session.cWiredRecSession(cfg)
-            if( hasattr(e,'metafile') ):
-                assert not hasattr(e,'soundfile_pattern'), "give a metafile OR a soundfile_pattern"
-                rs.init_from_metafile(os.path.join(data_path, e.metafile))
-            elif( hasattr(e,'soundfile_pattern') ):
-                assert not hasattr(e,'metafile'), "give a metafile OR a soundfile_pattern"
-                rs.init_from_filename_pattern(os.path.join(data_path, e.soundfile_pattern), node_ids=[x[0] for x in base_sloc])
-            else:
-                raise RuntimeError("Neither a metafile or a soundfile_pattern found")
+            rs.session_identifier = os.path.join(data_path, e['rec_session_identifier'])
+            if( e['time_is_global'] ): # soundfile is a metafile
+                assert  e['soundfile_pattern'] is None, "cannot specify both a soundfile_pattern and a soundfile when time_is_global (syrinx mode) since soundfile is the metafile"
+                rs.init_from_metafile(os.path.join(data_path, e['soundfile']))
+            else: # time_is_global == False, implies soundfile is NOT metafile
+                assert e['soundfile_pattern'] is not None, "must specify soundfile_pattern when time_is_global == False (raven mode)"
+                rs.init_from_filename_pattern(os.path.join(data_path, e['soundfile_pattern']), node_ids=[x[0] for x in base_sloc])
 
         # optional output of multi-spectrogram
         if( cfg.getboolean('Main', 'multi_specs') ):
             freq_padding = 2000
-            #e.filter_desc = '*butter 3 band 100 1000'
             fig = plt.figure(figsize=(8, 14*1.5))
-            fig_misc.PlotMultiSpecs(fig, rs, e.start_time, e.duration, [str(x+1).zfill(2) for x in range(14)], 1,
+            fig_misc.PlotMultiSpecs(fig, rs, e['start_time'], e['duration'], [str(x+1).zfill(2) for x in range(14)], 1,
                                     NFFT=1024, overlap_fraction=None,
-                                    view_freq_range=[max((0, e.low_freq-freq_padding)), min((240000, e.high_freq+freq_padding))],
+                                    view_freq_range=[max((0, e['low_freq']-freq_padding)), min((240000, e['high_freq']+freq_padding))],
                                     #view_freq_range=[0,4000],
-                                    key_node_id=e.node_id,
+                                    key_node_id=e['node_id'],
                                     normalize_together=True,
-                                    filter_desc=e.filter_desc,
+                                    filter_desc=loc_misc.GenerateFilterDescription(e),
                                     padding=0.5)
-            fig.suptitle("{0}\n{1}".format(e.name,e.filter_desc))
+            fig.suptitle("{0}\n{1}".format(e['name'], loc_misc.GenerateFilterDescription(e)))
             fig.subplots_adjust(hspace=0, bottom=.025, top=.95, left=.05, right=.99)
             if( cfg.getboolean('Main','interactive') ):
                 plt.show()
@@ -278,14 +286,14 @@ def Main():
                 selection_color=fig_highlight_color)
 
         # optionally exclude some nodes by removing them from sloc
-        sloc = list(base_sloc)
-        if( hasattr(e,'exclude_nodes') and e.exclude_nodes != '' and e.exclude_nodes.lower() != 'none' ):
-            tmp_list = [x.strip() for x in e.exclude_nodes.split(',')]
+        sloc = copy.deepcopy(base_sloc)
+        if( e['exclude_nodes'] is not None and e['exclude_nodes'].lower() != 'none' ):
+            tmp_list = [x.strip() for x in e['exclude_nodes'].split(',')]
             for tmp in tmp_list:
                 if( tmp == '' ):
                     continue
-                if( tmp == e.node_id ):
-                    LOG.warn("Cannot exclude key node '{}' (exclude_nodes={})".format(e.node_id, e.exclude_nodes))
+                if( tmp == e['node_id'] ):
+                    LOG.warn("Cannot exclude key node '{}' (exclude_nodes={})".format(e['node_id'], e['exclude_nodes']))
                     continue
                 try:
                     i = [x[0] for x in sloc].index(tmp)
@@ -300,15 +308,14 @@ def Main():
         cesloc.CompGCCs(e, sloc, rs, params=cfg)
 
         ## sum step ##
-        extent_X_padding = cfg.getfloat('CES','extent_X_padding')
-        extent_Y_padding = cfg.getfloat('CES','extent_Y_padding')
-        limits = loc_misc.GetExtentFromSloc(sloc, xpadding=extent_X_padding, ypadding=extent_Y_padding, zplane='mean')
-        XY_RESOLUTION = cfg.getfloat('CES','sum_XY_resolution')
-        Z_RESOLUTION = cfg.getfloat('CES','sum_Z_resolution')
-        COMP_METHOD = cfg.getint('CES','sum_computation_method')
+        # determine extent and resolution of grid
+        limits = loc_misc.extent_string_to_extent_from_sloc(sloc, e['sum_extent'])
+        resolution = [float(x.strip()) for x in e['sum_resolution'].split(',')]
+        if( len(resolution) < 2 ):
+            resolution.append(0)
         # actually compute
-        cesloc.CompSum(limits, XY_RESOLUTION=XY_RESOLUTION, Z_RESOLUTION=Z_RESOLUTION, \
-                    COMP_METHOD=COMP_METHOD, USE_MP=True)
+        cesloc.CompSum(limits, XY_RESOLUTION=resolution[0], Z_RESOLUTION=resolution[1], \
+                        COMP_METHOD=e['sum_computation_method'], USE_MP=True)
         # plot
         ax1 = fig.add_subplot(2,2,3)
         PlotPseudoLikelihoodSlice(cesloc, ax=ax1, show_title=True)
@@ -316,23 +323,15 @@ def Main():
 
         ## refine sum step ##
         # determine limits and resolution
-        p = cesloc.max_C_pt # convience
-        refine_XY_padding = cfg.getfloat('CES','refine_XY_padding')
-        refine_Z_padding = cfg.getfloat('CES','refine_Z_padding')
-        refine_XY_resolution = cfg.getfloat('CES','refine_XY_resolution')
-        refine_Z_resolution = cfg.getfloat('CES','refine_Z_resolution')
-        refine_limits = [
-                        p[0]-refine_XY_padding,
-                        p[0]+refine_XY_padding,
-                        p[1]-refine_XY_padding,
-                        p[1]+refine_XY_padding,
-                        p[2]-refine_Z_padding,
-                        p[2]+refine_Z_padding ]
+        limits = loc_misc.extent_string_to_extent_from_point(cesloc.max_C_pt, e['refine_extent'])
+        refine_resolution = [float(x.strip()) for x in e['refine_resolution'].split(',')]
+        if( len(refine_resolution) < 2 ):
+            refine_resolution.append(0)
         # make the refine limits fall on resolution increments
-        refine_limits = loc_misc.RoundFuseAxisToResolution(refine_limits, refine_XY_resolution, refine_Z_resolution)
+        limits = loc_misc.RoundFuseAxisToResolution(limits, refine_resolution[0], refine_resolution[1])
         # actually compute
-        cesloc.CompSum(refine_limits, XY_RESOLUTION=refine_XY_resolution, Z_RESOLUTION=refine_Z_resolution, \
-                    COMP_METHOD=COMP_METHOD, USE_MP=True)
+        cesloc.CompSum(limits, XY_RESOLUTION=refine_resolution[0], Z_RESOLUTION=refine_resolution[1], \
+                    COMP_METHOD=e['sum_computation_method'], USE_MP=True)
         # plot
         ax2 = fig.add_subplot(2,2,4)
         PlotPseudoLikelihoodSlice(cesloc, ax=ax2, show_title=True)
@@ -345,7 +344,7 @@ def Main():
         ax1.axhline(y=cesloc.max_C_pt[1], color=fig_highlight_color, lw=0.25, alpha=0.75)
 
         # rough max error estimate
-        err_thresh_factor = cfg.getfloat('CES', 'error_est_threshold')
+        err_thresh_factor = e['error_est_threshold']
         warning_string = ''
         if( err_thresh_factor > 0 ):
             err_est_thresh = err_thresh_factor * cesloc.max_C_val
@@ -354,7 +353,7 @@ def Main():
             err_est_d = max( NP.sqrt((cesloc.x_vals[cidx[:,2]]-pt[0])**2 +
                                 (cesloc.y_vals[cidx[:,1]]-pt[1])**2 +
                                 (NP.array(cesloc.z_vals)[cidx[:,0]]-pt[2])**2 ) )
-            err_est_d += NP.sqrt(refine_XY_resolution**2)
+            err_est_d += NP.sqrt(refine_resolution[0]**2)
             if( pt[0]-err_est_d < cesloc.C_extent[0] or
                 pt[0]+err_est_d > cesloc.C_extent[1] or
                 pt[1]-err_est_d < cesloc.C_extent[2] or
@@ -385,28 +384,25 @@ def Main():
         if( data_path is not None and data_path != '' ):
             relpath_start = os.path.realpath(data_path)
         s = u""
-        s += u"name: {0.name:s}\n".format(e)
-        s += u"idx: {:d}\n".format(e.idx)
-        s += u"key node: {0.node_id:s}\n".format(e)
-        s += u"start: {0.start_time:.3f} s\n".format(e)
-        s += u"duration: {0.duration:.3f} s\n".format(e)
-        s += u"low  freq: {0:g} hz\nhigh freq: {1:g} hz\n".format(e.low_freq, e.high_freq)
-        s += u"filter description: {0:s}\n".format(e.filter_desc)
-        if( e.smooth_cenv_filter is not None and 
-                e.smooth_cenv_filter != '' and
-                e.smooth_cenv_filter != 'none' ):
-            s += u"additional cenv smoothing filter: {}\n".format(e.smooth_cenv_filter)
-        s += u"temperature / RH: {0.temperature:g}{1:s}C / {0.RH:g}%\n".format(e, u'\N{DEGREE SIGN}')
-        s += u"key C val thresh: {0:g}\n".format(cfg.getfloat('CES','GCC_key_max_c_val_threshold'))
+        s += u"name: {:s}\n".format(e['name'])
+        s += u"idx: {:d}\n".format(e['idx'])
+        s += u"key node: {:s}\n".format(e['node_id'])
+        s += u"start: {:.3f} s\n".format(e['start_time'])
+        s += u"duration: {:.3f} s\n".format(e['duration'])
+        s += u"low  freq: {0:g} hz\nhigh freq: {1:g} hz\n".format(e['low_freq'], e['high_freq'])
+        s += u"filter description: {0:s}\n".format(loc_misc.GenerateFilterDescription(e))
+        if( e['smooth_cenv_window'] != None and e['smooth_cenv_window'] > 0 ):
+            s += u"additional cenv smoothing filter: hanning window width {} ms\n".format(e['smooth_cenv_window'])
+        else:
+            s += u"additional cenv smoothing filter: None\n"
+        s += u"temperature / RH: {:g}{:s}C / {:g}%\n".format(e['temperature'], u'\N{DEGREE SIGN}', e['RH'])
+        s += u"key C val thresh: {0:g}\n".format(e['gcc_key_max_c_val_threshold'])
         s += u"all key nodes: {0:s}\n".format(",".join(sorted(cesloc.key_node_ids_used)))
-        s += u"data dir: {0:s}\n".format(data_path)
-        if( hasattr(e,'soundfile') ):
-            s += u"soundfile: {0:s}\n".format(os.path.relpath(e.soundfile, relpath_start))
-        if( hasattr(e,'metafile') ):
-            s += u"metafile: {0:s}\n".format(os.path.relpath(e.metafile, relpath_start))
-        if( hasattr(e,'soundfile_pattern') ):
-            s += u"soundfile_pattern: {0:s}\n".format(e.soundfile_pattern)
-        s += u"mics file: {0:s}\n".format(os.path.relpath(e.nodeloc_filename, relpath_start))
+        s += u"data path: {0:s}\n".format(relpath_start)
+        s += u"soundfile: {0:s}\n".format(os.path.relpath(e['soundfile'], relpath_start))
+        if( e['soundfile_pattern'] is not None ):
+            s += u"soundfile_pattern: {0:s}\n".format(os.path.relpath(os.path.join(data_path,e['soundfile_pattern']), relpath_start))
+        s += u"mics file: {0:s}\n".format(os.path.relpath(mics_filename, relpath_start))
         s += u"\nMax point: [{0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}] = {1:.3f}\n\n".format(cesloc.max_C_pt, cesloc.max_C_val)
         s += u"Error indicator: {:.2f} m (thresh={:.3f}, c={:.3f})\n".format(err_est_d, err_thresh_factor, err_est_thresh)
         if( warning_string ):
@@ -425,19 +421,16 @@ def Main():
                         dpi=cfg.getint('Fig','dpi'))
 
         # anything else which needs to be prepared/set for csv output
-        if( hasattr(e,'soundfile') ):
-            sndfile = e.soundfile
-        else:
-            sndfile = e.metafile # Events should have a soundfile or a metafile set
 
         # output the CSV row
-        outrow = [ e.idx,
-                sndfile,
-                e.node_id,
-                e.start_time,
-                e.duration,
-                e.low_freq,
-                e.high_freq,
+        outrow = [
+                e['idx'],
+                e['soundfile'],
+                e['node_id'],
+                e['start_time'],
+                e['duration'],
+                e['low_freq'],
+                e['high_freq'],
                 ]
         outrow.extend(cesloc.max_C_pt)
         outrow.append(cesloc.max_C_val)
@@ -496,19 +489,18 @@ def PlotNodeLocations(ax, sloc, plot_sym='wo', text_color='k', key_color='r', al
 def PlotKeySpectrogram(e, rs, fig, ax, padding, freq_padding, NFFT, overlap_fraction, vmin, selection_color='r'):
     # e is an event object
     # rs is rec_session
-    freq_low = e.low_freq
-    freq_high = e.high_freq
+    freq_low = e['low_freq']
+    freq_high = e['high_freq']
     noverlap = int(NFFT*overlap_fraction)
     view_freq_range=[max((0, freq_low-freq_padding)),
                      min((240000, freq_high+freq_padding))]
     FS = rs.nominal_FS
-    filter = loc_misc.CreateFilter(FS, e.filter_desc)
-    if( e.time_is_global ):
-        start_time = e.start_time
+    filter_func = loc_misc.CreateFilterFunc(FS, loc_misc.GenerateFilterDescription(e))
+    if( e['time_is_global'] ):
+        start_time = e['start_time']
     else:
-        start_time = rs.FTime2GTime(e.node_id, e.soundfile, e.start_time)
-    data = rs.ReadDataAtGTime(e.node_id, start_time-padding, e.duration+2*padding, 1) # @TCC 1 channel only
-    data = lfilter(filter[1], filter[0], data)
+        start_time = rs.FTime2GTime(e['node_id'], e['soundfile'], e['start_time'])
+    data = filter_func(rs.ReadDataAtGTime(e['node_id'], start_time-padding, e['duration']+2*padding, 1)) # @TCC 1 channel only
     # spectrogram computation
     Pxx, freqs, times = matplotlib.mlab.specgram(data, NFFT=NFFT, Fs=FS, noverlap=noverlap, scale_by_freq=True)
     Pxx = 10. * NP.log10(Pxx) # convert to dB
@@ -528,11 +520,11 @@ def PlotKeySpectrogram(e, rs, fig, ax, padding, freq_padding, NFFT, overlap_frac
         ax.set_ylim(view_freq_range)
     # draw a rectangle around the time+freq range of the event
     rect = mpl.patches.Rectangle( (start_time, freq_low),
-            e.duration, freq_high-freq_low,
+            e['duration'], freq_high-freq_low,
             edgecolor='w', facecolor='none', linewidth=1, alpha=0.5)
     ax.add_artist(rect)
     rect = mpl.patches.Rectangle( (start_time, freq_low),
-            e.duration, freq_high-freq_low,
+            e['duration'], freq_high-freq_low,
             edgecolor=selection_color, facecolor='none', linewidth=.25, alpha=1)
     ax.add_artist(rect)
 
