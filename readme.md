@@ -32,12 +32,14 @@ with multiple microphones, so some of the terminology may be a bit different tha
 
 ## Installing ##
 
+Basic instlall instructions.  Power users can do a git clone and figure out the rest.
+
 * Install python with pylab (ect.)  
 I suggest just using the [Anaconda Python distribution](https://store.continuum.io/cshop/anaconda/) which includes everything you need.
-* Download
+* [Download locbatch.zip](https://github.com/travc/locbatch/archive/master.zip)
 * Unzip it someplace
 * (If using MS Windows) Make a shortcut to `locbatch.bat` and put that shortcut someplace easily accessible like the Desktop.
-The program can be run by dragging a config file onto that shortcut.
+The program can be run by dragging a config file onto that shortcut (details below).
 
 ## Usage ##
 
