@@ -35,7 +35,9 @@ with multiple microphones, so some of the terminology may be a bit different tha
 * Install python with pylab (ect.)  
 I suggest just using the [Anaconda Python distribution](https://store.continuum.io/cshop/anaconda/) which includes everything you need.
 * Download
-* Unzip
+* Unzip it someplace
+* for Windows, make a shortcut to `locbatch.bat` and put that shortcut someplace easily accessible like the Desktop.
+The program can be run by dragging a config file onto that shortcut.
 
 ## Usage ##
 
@@ -121,7 +123,6 @@ which means settings (known as options) are organized within sections.  It can a
 ### Running ###
 
 Under MS Windows, assuming you have installed the [Anaconda Python distribution](https://store.continuum.io/cshop/anaconda/), locbatch can be run by dragging a config file onto `locbatch.bat` (or a shortcut to `locbatch.bat`), assuming that the config file is in the same direcotry as the other files it needs.
-
 
 Locbatch can also be run from the command line, though the exact command may depend on your python distribution.  It will be something like:  
 `python something/locbatch/locbatch_code/locbatch.py -c your_config_file.loccfg`
