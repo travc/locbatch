@@ -52,7 +52,8 @@ The input files should (probably) all be in the same directory.
 #### Sound files ####
 The actual sound files / recordings must be single channel files.
 Wave (aka .wav) PCM files are supported natively and tested.  
-Support for many different formats could be easily added by using [sox](http://sox.sourceforge.net/) (the code is already all there, but not enabled or tested).
+Support for many different formats could be easily added by using [sox](http://sox.sourceforge.net/) (the code is already all there, but not enabled or tested).  
+See the examples.
 
 The sound files may be specified with a metafile OR a filename_pattern.
 
@@ -90,12 +91,14 @@ For example, the filename_pattern `20120410_*_{node_id}.wav` would work if your 
 A file giving the position of each node/microphone is also required.  
 The preferred format is one line per node listing: `node_id channel X Y Z` where `X`, `Y` and `Z` are position values in meters. NOTE: `channel` will always be `1` for wired arrays.  
 Locbatch will also accept a file which just has one `X Y` pair per line,
-from which it will infer the `node_id` from the line number (`01`, `02`, ect.) and set all the `Z` values to 0.
+from which it will infer the `node_id` from the line number (`01`, `02`, ect.) and set all the `Z` values to 0.  
+See the examples.
 
 #### Annotation file ####
 The annotation file lists the events you want to localize.  
 Locbatch currently supports two types of annotation files: Syrinx annotation files and Raven selection tables.  
-I do intend to add support for other types of annotation files (at least Praat TextGrids and a locbatch/simple format).
+I do intend to add support for other types of annotation files (at least Praat TextGrids and a locbatch/simple format).  
+See the examples.
 
 #### Configuration file ####
 The confguration file provides locbatch all the information it needs to run.  
@@ -104,8 +107,8 @@ It also gives information needed for localization which may not be included in t
 Finally, it specifies various options for how the localization is to be computed.
 
 Two fiarly well commented example configuration files are included and should be used as a guide (one for Syrinx annotations, one for Raven):  
-[locbatch_syrinx.cfg](locbatch_syrinx.cfg)  
-[locbatch_raven.cfg](locbatch_raven.cfg)  
+[examples/locbatch_syrinx.cfg](examples/locbatch_syrinx.cfg)  
+[examples/locbatch_raven.cfg](examples/locbatch_raven.cfg)  
 The [locbatch_code/default.cfg](locbatch_code/default.cfg) file gives all the possible options you can set.
 
 Locbatch is intended to be run by creating a new config file (normally by copying, renaming an editing and existing one) for each new batch of localizations.  This way, the documentation of exactly what settings were used will be kept along with the results.  Any options not set in the config file will be set from the [locbatch_code/default.cfg](../locbatch_code/default.cfg) file.
