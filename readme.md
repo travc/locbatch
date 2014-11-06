@@ -36,7 +36,7 @@ with multiple microphones, so some of the terminology may be a bit different tha
 I suggest just using the [Anaconda Python distribution](https://store.continuum.io/cshop/anaconda/) which includes everything you need.
 * Download
 * Unzip it someplace
-* for Windows, make a shortcut to `locbatch.bat` and put that shortcut someplace easily accessible like the Desktop.
+* (If using MS Windows) Make a shortcut to `locbatch.bat` and put that shortcut someplace easily accessible like the Desktop.
 The program can be run by dragging a config file onto that shortcut.
 
 ## Usage ##
