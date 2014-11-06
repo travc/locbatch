@@ -137,7 +137,7 @@ Good vs bad localizations should normally be obvious from looking at the figure,
 * Spatial aliasing caused by some low frequency (< 200Hz) sounds, error in microphone positions, and/or error in the speed of sound can result in a 'bumpy' likelihood map.  
 Try applying additional smoothing to the cross-correlation-evelopes (cenvs) by adding (in the `[Event defaults]` section of the config or per-event in the annotation file):  
 `smooth_cenv_window: 75`  
-This smooth the cenvs by convolving it with at 75 millisecond Hamming window.  Increase/decrease the `75` to appply more/less smoothing.
+This smooth the cenvs by convolving them with at 75 millisecond Hamming window.  Increase/decrease the `75` to appply more/less smoothing.
 * ...
 
 
