@@ -119,7 +119,7 @@ Locbatch is intended to be run by creating a new config file (normally by copyin
 
 Results will automatically be output to a directory based on the config filename, so try to give it a meaningful name and be careful not overwrite existing files you want to keep.
 
-Note: The config file is read by a python [SaveConfigParser](https://docs.python.org/2/library/configparser.html)
+Note: The config file is read by a python [SafeConfigParser](https://docs.python.org/2/library/configparser.html)
 which means settings (known as options) are organized within sections.  It can also do some fancy stuff like interpolation where `%(var)s` will be replaced with the value of `var`, assuming `var` is set somewhere in the config file.
 
 ### Running ###
