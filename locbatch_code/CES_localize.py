@@ -99,8 +99,8 @@ class cCESLoc():
         """Compute generalized cross-correlation pairs between sensors
             sloc is sensor/mic locations
             session is rec_session
-            params is a cGCCParams, a ConfigParser, a config filename, or None (defaults) 
-            keep_going = progress_callback(message, fraction_done) 
+            params is a cGCCParams, a ConfigParser, a config filename, or None (defaults)
+            keep_going = progress_callback(message, fraction_done)
             allows aborting... returns False if aborted, True otherwise"""
         self.sloc = sloc
         self.session = session
@@ -108,9 +108,9 @@ class cCESLoc():
         if( isinstance(params, cGCCParams) ): # all good
             pass
         elif( not params ): # default values
-            params = cGCCParams() 
+            params = cGCCParams()
         else: # assume config or config_filename
-            params = cGCCParams(params) 
+            params = cGCCParams(params)
 
         # convience
         FS = self.session.GetNominalFS()
@@ -118,30 +118,30 @@ class cCESLoc():
         dur_samps = int(event['duration']*FS)
 
         # config options / values
-        INTRA_NODE_LOC_ERROR = params.INTRA_NODE_LOC_ERROR 
-        INTER_NODE_LOC_ERROR = params.INTER_NODE_LOC_ERROR  
-        SPEED_SOUND_ERROR_FACTOR = params.SPEED_SOUND_ERROR_FACTOR 
-        EXCLUDE_INTERNODE = params.EXCLUDE_INTERNODE 
-        EXCLUDE_INTRANODE = params.EXCLUDE_INTRANODE 
-        MAX_NUM_PASSES = params.MAX_NUM_PASSES 
-        USE_MP = params.USE_MP 
+        INTRA_NODE_LOC_ERROR = params.INTRA_NODE_LOC_ERROR
+        INTER_NODE_LOC_ERROR = params.INTER_NODE_LOC_ERROR
+        SPEED_SOUND_ERROR_FACTOR = params.SPEED_SOUND_ERROR_FACTOR
+        EXCLUDE_INTERNODE = params.EXCLUDE_INTERNODE
+        EXCLUDE_INTRANODE = params.EXCLUDE_INTRANODE
+        MAX_NUM_PASSES = params.MAX_NUM_PASSES
+        USE_MP = params.USE_MP
 
         if( not mp_pool() ): USE_MP = False
 
-        tic = time.time() # timer 
+        tic = time.time() # timer
 
         ## compute speed of sound from temperature and RH
         self.speed_of_sound = loc_misc.CalcSpeedOfSound(event['temperature'], event['RH'])
 
-        if( not USE_MP ): 
-            # make sure global variable is assinged in this process if not using workers 
-            globals()['mppool'].g_session = self.session 
-            globals()['mppool'].g_sloc = sloc 
+        if( not USE_MP ):
+            # make sure global variable is assinged in this process if not using workers
+            globals()['mppool'].g_session = self.session
+            globals()['mppool'].g_sloc = sloc
         else:
             # respawn mp_pool setting global variables for worker functions
-            mp_pool().Respawn(None, {'g_session':self.session, 'g_sloc':sloc}) 
+            mp_pool().Respawn(None, {'g_session':self.session, 'g_sloc':sloc})
 
-        ### compute the max dist+error (r_ij) for each pair of sensors 
+        ### compute the max dist+error (r_ij) for each pair of sensors
         r = [0]*len(sloc) # preallocate
         for i in range(len(sloc)):
             r[i] = [0]*len(sloc) # preallocate
@@ -154,9 +154,9 @@ class cCESLoc():
                 r[i][j] /= self.speed_of_sound  # convert from meters to sec
                 # extra padding if smoothing cenv values to eliminate any possible edge effects (assumes window is in ms)
                 if( event['smooth_cenv_window'] != None and event['smooth_cenv_window'] > 0 ):
-                    r[i][j] += event['smooth_cenv_window']/1000.0/2.0 
+                    r[i][j] += event['smooth_cenv_window']/1000.0/2.0
                 # additional padding proportional to distance
-                r[i][j] *= (1+SPEED_SOUND_ERROR_FACTOR) 
+                r[i][j] *= (1+SPEED_SOUND_ERROR_FACTOR)
                 r[j][i] = r[i][j]  # fill in symmeteric value
 
         key_node = event['node_id']
@@ -212,7 +212,7 @@ class cCESLoc():
                 print >>sys.stderr, "\b"*40,
                 print >>sys.stderr, "\bCompGCCs: pass {0}/{1}".format(int(pass_num),actual_max_num_passes),
 
-            if( progress_callback != None ): 
+            if( progress_callback != None ):
                 keep_going = progress_callback("Pass {0:d} of {1:d}".format(pass_num, actual_max_num_passes),
                                         len(cor)/float(total_num_cors_to_compute))
                 if( not keep_going ): return False
@@ -220,14 +220,14 @@ class cCESLoc():
             # load the key data
             gtime = start_gtime+key_offset
             length_samps = dur_samps
-            key_data = self.session.ReadDataAtGTime(key_node, gtime, length_samps, 
+            key_data = self.session.ReadDataAtGTime(key_node, gtime, length_samps,
                     channels=[key_channel], center_flag=True, length_in_samps=True)
             if( filter_func ): # filter if the coefficents are defined
                 key_data = filter_func(key_data)
             key_sloc_idx = loc_misc.FindInSloc(key_node, key_channel, sloc)
 
             # decimate @TCC TESTING
-            decimate_factor = self.config.getint('TESTING','decimate_factor') 
+            decimate_factor = self.config.getint('TESTING','decimate_factor')
             if( decimate_factor > 1 ):
                 key_data = decimate(key_data,decimate_factor)
                 dFS = FS / float(decimate_factor)
@@ -235,11 +235,11 @@ class cCESLoc():
                 dFS = FS
 
             # create list of sloc idxs to gxcorr key with
-            targets = [] 
+            targets = []
             for i in range(len(sloc)):
                 if( i == key_sloc_idx ): continue # skip self
                 if( cor_pairs_done[i][key_sloc_idx] or cor_pairs_done[key_sloc_idx][i] ): continue # skip done already
-                if( pass_num > 1 and EXCLUDE_INTRANODE and sloc[i][0] == sloc[key_sloc_idx][0] ): continue 
+                if( pass_num > 1 and EXCLUDE_INTRANODE and sloc[i][0] == sloc[key_sloc_idx][0] ): continue
                 if( pass_num > 1 and EXCLUDE_INTERNODE and sloc[i][0] != sloc[key_sloc_idx][0] ): continue
                 targets.append(i)
                 cor_pairs_done[key_sloc_idx][i] = True # done really means "in target list or done"
@@ -269,7 +269,7 @@ class cCESLoc():
                     c = WorkerCompGXCorrPair(key_sloc_idx, si, key_data, target_padding, gtime, dur_samps, filter_func, decimate_factor)
                     cor.append(c)
 
-            if( progress_callback != None ): 
+            if( progress_callback != None ):
                 keep_going = progress_callback("Pass {0:d} of {1:d}".format(pass_num, actual_max_num_passes),
                                         len(cor)/float(total_num_cors_to_compute))
                 if( not keep_going ): return False
@@ -286,7 +286,7 @@ class cCESLoc():
                     or len(max_c_list) < 1 \
                     or (MAX_NUM_PASSES and pass_num >= MAX_NUM_PASSES) ):
                 done = 1
-            else: 
+            else:
                 # prep for next pass...
                 # pick the sens with max correlation vs the first key as the next key
                 tmp = max_c_list.pop()
@@ -309,7 +309,7 @@ class cCESLoc():
             if( EXCLUDE_INTERNODE and c['key_sloc'][0] != c['target_sloc'][0] ):
                 keep[-1] = False
         cor = [cor[i] for i in range(len(cor)) if keep[i]]
-        # cleanup globals 
+        # cleanup globals
         if( not USE_MP ): # if assinged locally (not workers)
             del globals()['mppool'].g_session
             del globals()['mppool'].g_sloc
@@ -427,13 +427,13 @@ class cCESLoc():
                     sensor_dists[idxs[i]] = Ds[i]
         #print "DIST TIME :",(time.time()-tic2)
 
-        # respawn the mp_pool to pass global variables (or set in this process) 
-        if( not USE_MP ): 
-            # make sure global variable is assinged in this process if not using workers 
-            globals()['mppool'].g_session = self.session 
-            globals()['mppool'].g_sloc = sloc 
-            globals()['mppool'].g_gccs = gccs 
-            globals()['mppool'].g_sensor_dists = sensor_dists 
+        # respawn the mp_pool to pass global variables (or set in this process)
+        if( not USE_MP ):
+            # make sure global variable is assinged in this process if not using workers
+            globals()['mppool'].g_session = self.session
+            globals()['mppool'].g_sloc = sloc
+            globals()['mppool'].g_gccs = gccs
+            globals()['mppool'].g_sensor_dists = sensor_dists
         else:
             # respawn mp_pool setting global variables for worker functions
             mp_pool().Respawn(None, \
@@ -441,7 +441,7 @@ class cCESLoc():
                     'g_gccs':gccs,
                     'g_sloc':sloc,
                     'g_sensor_dists':sensor_dists,
-                    }) 
+                    })
 
         ## compute the actual sums
 
@@ -462,7 +462,7 @@ class cCESLoc():
             for result in result_list:
                 C += result.get()
 
-        # cleanup globals 
+        # cleanup globals
         if( not USE_MP ): # if assinged locally (not workers)
             del globals()['mppool'].g_session
             del globals()['mppool'].g_sloc
@@ -487,7 +487,7 @@ class cCESLoc():
         self.grid_shape = grid_shape
         #self.C_extent = NP.array([x_extent[0], x_extent[1], y_extent[0], y_extent[1]]) - XY_RESOLUTION/2.0
         self.C_extent = NP.array([x_list[0], x_list[-1]+XY_RESOLUTION, y_list[0], y_list[-1]+XY_RESOLUTION]) - XY_RESOLUTION/2.0 # @TCC -- this does not seem correct, but apparently works
-        #self.C_extent = NP.array([X[0], X[-1], Y[0], Y[-1]]) 
+        #self.C_extent = NP.array([X[0], X[-1], Y[0], Y[-1]])
         self.x_vals = x_list
         self.y_vals = y_list
         self.z_vals = z_list
@@ -501,11 +501,11 @@ class cCESLoc():
 
 def WorkerCompGXCorrPair(key_sloc_idx, target_sloc_idx, key_data, r_offset_samp, start_gtime, dur_samps, filter_func, decimate_factor=0):
     # actually compute cross-correlation for a pair of sensors
-    # worker function (suitable for use with mp_pool worker processes) 
+    # worker function (suitable for use with mp_pool worker processes)
 
     # Worker process namespace is a bit odd
-    session = globals()['mppool'].g_session 
-    sloc = globals()['mppool'].g_sloc 
+    session = globals()['mppool'].g_session
+    sloc = globals()['mppool'].g_sloc
     #key_data = globals()['mppool'].g_key_data # @TCC could pass key_through global (respawn workers) instead
 
     key_sloc = sloc[key_sloc_idx]
@@ -528,8 +528,8 @@ def WorkerCompGXCorrPair(key_sloc_idx, target_sloc_idx, key_data, r_offset_samp,
     # pack results
     cor = {}
     cor['c'] = c
-    cor['maxlag'] = maxlag 
-    cor['cenv'] = cenv 
+    cor['maxlag'] = maxlag
+    cor['cenv'] = cenv
     cor['key_sloc_idx'] = key_sloc_idx
     cor['target_sloc_idx'] = target_sloc_idx
     cor['key_sloc'] = key_sloc
@@ -555,9 +555,9 @@ def WorkerCompGXCorrPair(key_sloc_idx, target_sloc_idx, key_data, r_offset_samp,
 
 
 def WorkerCompSum(gccs_idxs, FS, speed_of_sound, COMP_METHOD=0):
-    sloc = globals()['mppool'].g_sloc 
-    gccs = globals()['mppool'].g_gccs 
-    sensor_dists = globals()['mppool'].g_sensor_dists 
+    sloc = globals()['mppool'].g_sloc
+    gccs = globals()['mppool'].g_gccs
+    sensor_dists = globals()['mppool'].g_sensor_dists
     oobv = -10000 # value interp returns for extrapolation (something obvious since it shouldn't ever appear)
 
     C = NP.zeros(len(sensor_dists[0])) # allocate space for sum results
@@ -569,7 +569,7 @@ def WorkerCompSum(gccs_idxs, FS, speed_of_sound, COMP_METHOD=0):
         target_sloc = gccs[gccs_idx]['target_sloc']
         lags = range(-gccs[gccs_idx]['maxlag'], gccs[gccs_idx]['maxlag']+1)
         # expected TDOA between sensors in samples
-        D = (sensor_dists[target_sloc_idx]-sensor_dists[key_sloc_idx]) * FS / speed_of_sound 
+        D = (sensor_dists[target_sloc_idx]-sensor_dists[key_sloc_idx]) * FS / speed_of_sound
 
         if( COMP_METHOD == 1 ): # c for all
             C += NP.interp(D, lags, gccs[gccs_idx]['c'], left=oobv, right=oobv)
@@ -585,13 +585,12 @@ def WorkerCompSum(gccs_idxs, FS, speed_of_sound, COMP_METHOD=0):
 
 
 def WorkerCompDists(idxs):
-    sloc = globals()['mppool'].g_sloc 
-    X = globals()['mppool'].g_X 
-    Y = globals()['mppool'].g_Y 
-    Z = globals()['mppool'].g_Z 
+    sloc = globals()['mppool'].g_sloc
+    X = globals()['mppool'].g_X
+    Y = globals()['mppool'].g_Y
+    Z = globals()['mppool'].g_Z
     Ds = []
     for i in idxs:
         pt = sloc[i][2:5]
         Ds.append( NP.sqrt( (X-pt[0])**2 + (Y-pt[1])**2 + (Z-pt[2])**2 ) )
     return (idxs, Ds)
-
