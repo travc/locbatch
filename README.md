@@ -131,6 +131,8 @@ Locbatch can also be run from the command line, though the exact command may dep
 
 ## Interpreting results ##
 
+[An example result figure](https://github.com/travc/locbatch/wiki)
+
 ### Things to watch out for ###
 * **The error indicator/estimate value is very rough and not reliable.**  
 Good vs bad localizations should normally be obvious from looking at the figure, but it is suprisingly tricky to quantify that into a metric.
