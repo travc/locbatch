@@ -73,24 +73,24 @@ class event_factory(object):
         self.defaults.update([ (k, self.default_fields[k](v))
                                 if k in self.default_fields
                                 else (k,v)
-                                for k,v in dict(defaults_dict).iteritems() ])
+                                for k,v in dict(defaults_dict).items() ])
         self.overrides = OrderedDict(overrides_dict)
         # @TCC debugging output
         if( False ):
-            print "-- defaults",'-'*30
-            for k,v in self.defaults.iteritems():
-                print "{} : {} {}".format(k, v, type(v))
-            print "-- overrides",'-'*30
-            for k,v in self.overrides.iteritems():
-                print "{} : {} {}".format(k, v, type(v))
-            print '-'*45
+            print("-- defaults",'-'*30)
+            for k,v in self.defaults.items():
+                print("{} : {} {}".format(k, v, type(v)))
+            print("-- overrides",'-'*30)
+            for k,v in self.overrides.items():
+                print("{} : {} {}".format(k, v, type(v)))
+            print('-'*45)
             sys.exit(0)
         
     def apply_overrides(self, event):
         event.update([ (k, self.default_fields[k](v))
                             if k in self.default_fields
                             else (k,v)
-                            for k,v in self.overrides.iteritems() ])
+                            for k,v in self.overrides.items() ])
 
 
     ### Loading events from files #####################################
@@ -105,7 +105,7 @@ class event_factory(object):
                 # make fieldnames case insensitive
                 fieldnames = [x.lower() for x in reader.fieldnames]
                 tmp = {}
-                for k,v in row.iteritems():
+                for k,v in row.items():
                     if( k.lower() in tmp ):
                         raise RuntimeError("Duplicate fieldname '{}' in annotation file '{}'\nNOTE: fieldnames should not be case-sensitive".format(k.lower(), events_filename))
                     tmp[k.lower()] = v
@@ -175,7 +175,7 @@ class event_factory(object):
                 # make fieldnames case insensitive
                 fieldnames = [x.lower() for x in reader.fieldnames]
                 tmp = {}
-                for k,v in row.iteritems():
+                for k,v in row.items():
                     if( k.lower() in tmp ):
                         raise RuntimeError("Duplicate fieldname '{}' in annotation file '{}'\nNOTE: fieldnames should not be case-sensitive".format(k.lower(), events_filename))
                     tmp[k.lower()] = v

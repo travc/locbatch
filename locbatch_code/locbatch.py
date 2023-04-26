@@ -11,7 +11,7 @@ import os
 import time
 import argparse
 import glob
-import ConfigParser
+import configparser
 import subprocess
 import errno
 import csv
@@ -87,7 +87,7 @@ mpl.rcParams.update(params)
 def CreateSLocFromPatNodeloc(nodeloc_filename):
     # create sloc (sensor locations) from a Patricelli style mic locations file
     sloc = []
-    with open(nodeloc_filename, 'rU') as f:
+    with open(nodeloc_filename, 'r') as f:
         for l in f:
             l = l.strip().split('#',1)[0]
             if( l ):
@@ -108,11 +108,11 @@ def CreateSLocFromPatNodeloc(nodeloc_filename):
 def exit(retcode=0):
     # cleanup and exit
     global g_start_tic
-    print >>sys.stderr, "END {:.2f} secs elapsed".format(time.time()-g_start_tic)
+    print("END {:.2f} secs elapsed".format(time.time()-g_start_tic), file=sys.stderr)
     sys.exit(retcode)
 
 def Main():
-    print >>sys.stderr, "START"
+    print("START", file=sys.stderr)
     global g_start_tic
     g_start_tic = time.time()
 
@@ -125,10 +125,11 @@ def Main():
 
     # build the config (read config files)
     if args.cfg_file:
-        cfg = ConfigParser.SafeConfigParser()
+        cfg = configparser.ConfigParser(strict=False, interpolation=None, inline_comment_prefixes=('#',';'))
         cfg.optionxform=str # make the ConfigParser options case sensitive
-        cfg.readfp(open(DEFAULT_CONFIG,'rU'))
-        cfg.readfp(args.cfg_file)
+        print(DEFAULT_CONFIG, file=sys.stderr)
+        cfg.read_file(open(DEFAULT_CONFIG, 'r'))
+        cfg.read_file(args.cfg_file)
 
     # set verbosity levels (in modules too)
     verbose_lvl = cfg.getint('Main','verbose')
@@ -209,7 +210,7 @@ def Main():
             exit(2)
 
     ## open the csv writer
-    csvfile = open(os.path.join(outdir, out_filename),'wb')
+    csvfile = open(os.path.join(outdir, out_filename),'w', newline='')
     csvwriter = csv.writer(csvfile, dialect='excel')
     csvwriter.writerow(['idx', 'soundfile', 'node', 'start time', 'duration', 'low freq', 'high freq', 'X', 'Y', 'Z', 'C', 'err est', 'warning'])
 
@@ -229,7 +230,7 @@ def Main():
 
         # @TCC TEMP DEBUGGING
         s = []
-        for k,v in e.iteritems():
+        for k,v in e.items():
             s.append("{} : {}".format(k,v))
         LOG.info("EVENT...\n\t"+"\n\t".join(s))
         
@@ -245,7 +246,8 @@ def Main():
             rs.session_identifier = os.path.join(data_path, e['rec_session_identifier'])
             if( e['time_is_global'] ): # soundfile is a metafile
                 assert  e['soundfile_pattern'] is None, "cannot specify both a soundfile_pattern and a soundfile when time_is_global (syrinx mode) since soundfile is the metafile"
-                rs.init_from_metafile(os.path.join(data_path, e['soundfile']))
+                #rs.init_from_metafile(os.path.join(data_path, e['soundfile']))
+                rs.init_from_metafile(e['soundfile'])
             else: # time_is_global == False, implies soundfile is NOT metafile
                 assert e['soundfile_pattern'] is not None, "must specify soundfile_pattern when time_is_global == False (raven mode)"
                 rs.init_from_filename_pattern(os.path.join(data_path, e['soundfile_pattern']), node_ids=[x[0] for x in base_sloc])
@@ -453,7 +455,6 @@ def PlotNodeLocations(ax, sloc, plot_sym='wo', text_color='k', key_color='r', al
         text_alpha = alpha
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
-    ax.hold(True)
     # id
     for ni in range(len(sloc)):
         if( key_node_list is not None and

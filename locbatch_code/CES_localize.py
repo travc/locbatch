@@ -4,7 +4,7 @@ __doc__ = """Correlation Envelope Sum Localization
     @TCC -- More usage documentation goes here"""
 
 import sys
-import ConfigParser
+import configparser
 import time
 import math
 import logging
@@ -49,11 +49,11 @@ class cGCCParams():
         """Set the parameters from a ConfigParser
              if config is string, loads that as a configuration filename"""
         # if config is string, assume it is a filename and load it
-        if( isinstance(config, basestring) ):
+        if( isinstance(config, (str, bytes)) ):
             config_filename = config
             if( not os.path.isfile(config_filename) ):
-                raise RuntimeError, "String '{0}' passed to SetFromConfig, but file doesn't exit".format(config_filename)
-            config = ConfigParser.SafeConfigParser()
+                raise RuntimeError("String '{0}' passed to SetFromConfig, but file doesn't exit".format(config_filename))
+            config = configparser.ConfigParser()
             if( config_filename ):
                 config.read(config_filename)
         # set the values from config
@@ -209,8 +209,8 @@ class cCESLoc():
             pass_num += 1
 
             if( PROGRESS_PRINTING ):
-                print >>sys.stderr, "\b"*40,
-                print >>sys.stderr, "\bCompGCCs: pass {0}/{1}".format(int(pass_num),actual_max_num_passes),
+                print("\b"*40, file=sys.stderr)
+                print("\bCompGCCs: pass {0}/{1}".format(int(pass_num),actual_max_num_passes), file=sys.stderr)
 
             if( progress_callback != None ):
                 keep_going = progress_callback("Pass {0:d} of {1:d}".format(pass_num, actual_max_num_passes),
@@ -296,8 +296,8 @@ class cCESLoc():
                 key_offset = float(tmp[2])/FS
                 self.key_node_ids_used.append(key_node)
 
-        #print >>sys.stderr, "\b"*40,
-        #print "total cors computed =",len(cor),"(including ones later culled)"
+        #print("\b"*40, file=sys.stderr)
+        #print("total cors computed =",len(cor),"(including ones later culled)", file=sys.stderr)
 
         # done with while loop, so cleanup
         # cull out any values we had to compute which we don't actually want (first pass values)
@@ -318,8 +318,8 @@ class cCESLoc():
         self.gccs = cor
 
         if( PROGRESS_PRINTING ):
-            print >>sys.stderr, "\b"*40,
-            print >>sys.stderr, "\bCompGCCs (and envelopes): {0:d} gccs computed in {1:.2f} sec".format(len(cor), time.time()-tic)
+            print("\b"*40, file=sys.stderr)
+            print("\bCompGCCs (and envelopes): {0:d} gccs computed in {1:.2f} sec".format(len(cor), time.time()-tic), file=sys.stderr)
 
         LOG.info("CompGCCs (and envelopes): {0:d} gccs computed in {1:.2f} sec".format(len(cor), time.time()-tic))
 
@@ -349,7 +349,7 @@ class cCESLoc():
         elif( len(FUSE_AXIS) == 5 ): # only has one z value...
             FUSE_AXIS.append(FUSE_AXIS[4])
         else:
-            raise RuntimeError, "FUSE_AXIS should be: minx, maxx, miny, maxy, minz, maxz values\ngot:{0}".format(FUSE_AXIS)
+            raise RuntimeError("FUSE_AXIS should be: minx, maxx, miny, maxy, minz, maxz values\ngot:{0}".format(FUSE_AXIS))
 
         # convience
         gccs = self.gccs

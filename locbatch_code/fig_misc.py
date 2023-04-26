@@ -6,7 +6,6 @@ __doc__ = """Localization figure related miscellaneous stuff
 
 import sys
 import math 
-import ConfigParser
 
 import numpy as NP
 from scipy.signal import lfilter, butter, BadCoefficients # needed for filtering
@@ -14,7 +13,7 @@ from scipy.signal import lfilter, butter, BadCoefficients # needed for filtering
 # matplotlib, but only GUI/window-toolkit agnostic
 import matplotlib
 import matplotlib.transforms
-from mpl_toolkits.axes_grid.anchored_artists import AnchoredText
+from matplotlib.offsetbox  import AnchoredText
 
 from misc_utils import list_unique, issequence
 import mppool
@@ -265,7 +264,8 @@ class RectangleInteractor:
         y1 = self.poly.xy[1][1]
         return [x0, x1, y0, y1]
 
-    def _XYFromExtent(self, (x0,x1,y0,y1)):
+    def _XYFromExtent(self, xyextent_tuple):
+        x0,x1,y0,y1 = xyextent_tuple
         xs = [x0, x0, x1, x1, x0]
         ys = [y0, y1, y1, y0, y0]
         return zip(xs,ys)

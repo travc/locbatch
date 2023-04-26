@@ -168,7 +168,7 @@ class cWiredRecSession(cRecSession) :
         self.filegroups = OrderedDict()
         cur_node_id = 1
         base_path = os.path.dirname(metafile)
-        with open(os.path.realpath(metafile), 'rU') as f:
+        with open(os.path.realpath(metafile), 'r') as f:
             for l in f:
                 l = l.strip()
                 if( not l ):
@@ -217,7 +217,7 @@ class cWiredRecSession(cRecSession) :
         self.nominal_FS = None
         self.num_samps = None
         self.bytes_per_sample = None
-        for k,v in self.filegroups.iteritems():
+        for k,v in self.filegroups.items():
             for e in v:
                 if( not os.path.isfile(e['file']) ):
                     raise IOError("File not found: '"+str(e['file']))
@@ -396,7 +396,7 @@ class cWiredRecSession(cRecSession) :
             if( sys.platform == 'win32' ):
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            #print cmd
+            #print(cmd, file=sys.stderr)
             data = NP.fromstring(subprocess.Popen(cmd, stdout=subprocess.PIPE, startupinfo=startupinfo).communicate()[0],'<i%d'%(out_byps))
             data = data.reshape(len(data)/Nc, Nc) # make samples x channels... don't need for one channel
         return NP.squeeze(data) # if only one channel, remove the signleton dimension

@@ -6,7 +6,6 @@ __doc__ = """Localization related miscellaneous utility functions and classes
 
 import sys
 import math 
-import ConfigParser
 import warnings
 from collections import OrderedDict
 
@@ -124,7 +123,7 @@ def _CreateFilter(FS, filter_desc=None):
     if( filter_desc == None ):
         return None
     filter_desc = filter_desc.strip()
-    if( isinstance(filter_desc, basestring) ):
+    if( isinstance(filter_desc, (str, bytes)) ):
         if( len(filter_desc) > 7 and filter_desc[0:7] == '*butter' ):
             # create butterworth filter from description string
             l = filter_desc.split()
@@ -134,13 +133,13 @@ def _CreateFilter(FS, filter_desc=None):
             filter = _CreateButterFilter(FS, order, kind, freq)
         else:
             # assume filter_desc is a filter filename (2 lines of whitespace separated numbers sepcifing A and B)
-            print >>sys.stderr, "Loading filter from '{0}'".format(filter_desc)
+            print("Loading filter from '{0}'".format(filter_desc), file=sys.stderr)
             f = open(filter_desc,'r')
             a = [float(x) for x in f.readline().split()]
             b = [float(x) for x in f.readline().split()]
             filter = [a,b]
     else:
-        raise RuntimeError, "Unparseable filter description '{0}'".format(filter_desc)
+        raise RuntimeError("Unparseable filter description '{0}'".format(filter_desc))
     return filter
 
 
@@ -156,13 +155,13 @@ def _CreateButterFilter(FS, order, kind, freq):
     freq = [ float(f) for f in freq ] # make sure freqs are floats
     valid_kinds = ['low','high','band']
     if( any(kind == t for t in valid_kinds) == False ):
-        raise RuntimeError, "Unkown filter kind '{0}'".format(kind)
+        raise RuntimeError("Unkown filter kind '{0}'".format(kind))
     if( kind == 'band' and len(freq) < 2 ):
-        raise RuntimeError, "CreateButterFilter requires 2 frequencies for kind='band'"
+        raise RuntimeError("CreateButterFilter requires 2 frequencies for kind='band'")
     if( kind == 'band' and freq[0] >= freq[1] ):
-        raise RuntimeError, "Min frequency must be < max freq for band filter"
+        raise RuntimeError("Min frequency must be < max freq for band filter")
     if( freq[-1] >= float(FS/2) ):
-        raise RuntimeError, "Frequency ({0}) must be < sample_rate/2 ({1}) for filter".format(freq[-1], FS/2.)
+        raise RuntimeError("Frequency ({0}) must be < sample_rate/2 ({1}) for filter".format(freq[-1], FS/2.))
     tmp = [ 2*f/FS for f in freq ] # recale freq to 0, 1 (whre 1 is nyquist)
     # try to create the filter, if we get a BadCoefficients warning, reduce the order and try again
     order_backoff = 1 # how much to reduce the order when backing off
@@ -173,9 +172,9 @@ def _CreateButterFilter(FS, order, kind, freq):
             (b,a) = butter(order, tmp, kind)
         except BadCoefficients:
             if( order <= 1 ):
-                raise RuntimeError, "Error creating filter with order 1... very wrong"
+                raise RuntimeError("Error creating filter with order 1... very wrong")
             else:
-                print >>sys.stderr, "WARNING: CreateButterFilter\n\tBadCoefficents for order",order,"... Backing off to order",order-order_backoff
+                print("WARNING: CreateButterFilter\n\tBadCoefficents for order",order,"... Backing off to order",order-order_backoff, file=sys.stderr)
                 order = order-order_backoff
         else: # good filter
              break # done with while loop
@@ -213,7 +212,7 @@ def _extent_string_to_extent(base_extent, extent_string, z_opts=None):
             tmp.append('-0')
             tmp.append('+0')
         else:
-            tmp.append(z_opts.keys()[0])
+            tmp.append(list(z_opts.keys())[0])
     # Z if an opt (like 'mean')
     if( len(tmp) == 5 ):
         if( tmp[4] in z_opts ):
@@ -225,9 +224,9 @@ def _extent_string_to_extent(base_extent, extent_string, z_opts=None):
     # Apply '+' or '-' values
     limits = list(base_extent)
     for i,t in enumerate(tmp):
-        if( isinstance(t, basestring) and t[0] == '-' ):
+        if( isinstance(t, str) and t[0] == '-' ):
             limits[i] -= float(t[1:])
-        elif( isinstance(t, basestring) and t[0] == '+' ):
+        elif( isinstance(t, str) and t[0] == '+' ):
             limits[i] += float(t[1:])
         else:
             limits[i] = float(t)
@@ -241,7 +240,7 @@ def FindInSloc(node_id, channel, sloc, raise_on_fail=True):
             sloc_idx = i
             break
     if( raise_on_fail and sloc_idx == None ):
-        raise RuntimeError, "Cannont find sloc entry for node_id '{0}' channel '{1}'".format(node_id, channel)
+        raise RuntimeError("Cannont find sloc entry for node_id '{0}' channel '{1}'".format(node_id, channel))
     return sloc_idx
 
 
@@ -268,13 +267,13 @@ def GetExtentFromSloc(sloc, xpadding=0.0, ypadding=None, zpadding=0.0, zplane=No
                             min(z)-zpadding, max(z)+zpadding ]
     # handle specified zplane
     if( not zplane == None ):
-        if( isinstance(zplane, basestring) ):
+        if( isinstance(zplane, str) ):
             if( zplane.lower() == 'mean' or zplane.lower() == 'average' or zplane.lower() == 'ave' ):
                 extent[4] = NP.mean(z)
             elif( zplane.lower() == 'median' ):
                 extent[4] = NP.median(z)
             else:
-                raise RuntimeError, "Unknown zplane specifier '{0}'".format(zplane)
+                raise RuntimeError("Unknown zplane specifier '{0}'".format(zplane))
         else:
             extent[4] = zplane
         extent[5] = extent[4]
@@ -326,7 +325,7 @@ def CullSloc(sloc, key_node_id, key_channel, sensors_to_use=None):
 
     # ensure key node and channel are include
     if FindInSloc(key_node_id, key_channel, stu, False) == None:
-        print >>sys.stderr, "WARNING: key/annotated node_id ('{0}') and channel ({1}) must be included in sensors to use, adding it in".format(key_node_id, key_channel)
+        print("WARNING: key/annotated node_id ('{0}') and channel ({1}) must be included in sensors to use, adding it in".format(key_node_id, key_channel), file=sys.stderr)
         stu.append([key_node_id, key_channel])
     
     # actually cull sloc

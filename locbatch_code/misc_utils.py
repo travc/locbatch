@@ -7,7 +7,7 @@ __doc__ = """Miscellaneous utility functions and classes
 import os,sys
 from sys import stderr,stdout
 import math
-import ConfigParser
+import configparser
 
 ### verbose helper funciton (would be macro in C) ###
 VERBOSE_LEVEL_ = 8
@@ -101,28 +101,28 @@ def ConfigGet(config, section, option):
         val = config.get(section, option)
         # 'none' should be translated to None
         if( val.lower() == 'none' ): val = None
-    except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
+    except (configparser.NoOptionError, configparser.NoSectionError):
         val = None
     return val
 
 def ConfigGetBoolean(config, section, option):
     try:
         val = config.getboolean(section, option)
-    except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
+    except (configparser.NoOptionError, configparser.NoSectionError):
         val = None
     return val
 
 def ConfigGetInt(config, section, option):
     try:
         val = config.getint(section, option)
-    except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
+    except (configparser.NoOptionError, configparser.NoSectionError):
         val = None
     return val
 
 def ConfigGetFloat(config, section, option):
     try:
         val = config.getfloat(section, option)
-    except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
+    except (configparser.NoOptionError, configparser.NoSectionError):
         val = None
     return val
 

@@ -14,7 +14,7 @@ from numpy.fft import rfft, irfft, fft, ifft
 ## utility ##
 def nextpow2(x):
     """Return 2**N for the first integer N such that 2**N >= abs(x)"""
-    return 2**NP.ceil(NP.log2(NP.abs(x)))
+    return int(2**NP.ceil(NP.log2(NP.abs(x))))
 
 
 ## Main buisness #####
@@ -35,22 +35,22 @@ def GXCorr(x, y, maxlag, mode='coeff-real', comp_cenv=True):
         # prepad x & postpad x
         tmp = len(y)-len(x)
         if( tmp%2 == 1 ):
-            print >>sys.stderr, 'WARNING: gxcorr trying to do symmetric padding with odd length difference'
+            print('WARNING: gxcorr trying to do symmetric padding with odd length difference', file=sys.stderr)
         tmp = int(tmp/2)
-        x = NP.concatenate( ( NP.zeros(tmp), x, NP.zeros(tmp) ), 1)
+        x = NP.concatenate( ( NP.zeros(tmp), x, NP.zeros(tmp) ))
     else:
-        x = NP.concatenate( ( x, NP.zeros(len(y)-len(x)) ), 1)
+        x = NP.concatenate( ( x, NP.zeros(len(y)-len(x)) ))
 
     # pad out signals to make them same length
     if( NEXTPOW2_PADDING ):
     # final size will be the next power of 2 of y (the longer signal)
         padded_size = nextpow2(len(y))
-        y = NP.concatenate((y, NP.zeros(padded_size-len(y))), 1)
+        y = NP.concatenate((y, NP.zeros(padded_size-len(y))))
     # pad x to same length as y
     if( len(x) < len(y) ):
-        x = NP.concatenate((x, NP.zeros(len(y)-len(x))), 1)
+        x = NP.concatenate((x, NP.zeros(len(y)-len(x))))
     if( len(y) < len(x) ):
-        y = NP.concatenate((y, NP.zeros(len(x)-len(y))), 1)
+        y = NP.concatenate((y, NP.zeros(len(x)-len(y))))
 
     # convience
     N = len(x)
@@ -69,7 +69,7 @@ def GXCorr(x, y, maxlag, mode='coeff-real', comp_cenv=True):
         c = c[lag_idxs]
         tmp = NP.sqrt( NP.dot(x,x) * NP.dot(y,y) )
         if( tmp == 0 ):
-            print >>sys.stderr, "Warning: GXCorr coeff normalization power == 0 ?!"
+            print("Warning: GXCorr coeff normalization power == 0 ?!", file=sys.stderr)
             c[:] = 0
         else:
             norm_factor = tmp
@@ -88,7 +88,7 @@ def GXCorr(x, y, maxlag, mode='coeff-real', comp_cenv=True):
         c = c[lag_idxs]
         tmp = NP.sqrt( NP.dot(x,x) * NP.dot(y,y) )
         if( tmp == 0 ):
-            print >>sys.stderr, "Warning: GXCorr coeff-real normalization power == 0 ?!"
+            print("Warning: GXCorr coeff-real normalization power == 0 ?!", file=sys.stderr)
             c[:] = 0
         else:
             norm_factor = tmp
@@ -109,12 +109,12 @@ def GXCorr(x, y, maxlag, mode='coeff-real', comp_cenv=True):
             assert( len(tmp) == n )
             if( True ): # rfft (very tiny bit faster)
                 h = rfft(tmp)
-                h = NP.concatenate( ( h, NP.zeros(len(tmp)-len(h)) ), 1) 
-                h[1:n/2] *= 2
+                h = NP.concatenate( ( h, NP.zeros(len(tmp)-len(h)) ))
+                h[1:n//2] *= 2 # '//' is integer division operator
             else: # fft (probably safer if using different fft libaray)  
                 h = fft(tmp)
-                h[1:n/2] *= 2
-                h[n/2+1:] = 0.
+                h[1:n//2] *= 2.
+                h[n//2+1:] = 0.
             h = ifft(h)
             cenv = NP.sqrt(h*NP.conj(h))
             cenv = cenv[pre_pad:len(c)+pre_pad]
@@ -123,7 +123,7 @@ def GXCorr(x, y, maxlag, mode='coeff-real', comp_cenv=True):
             if( len(Pxy) < len(full_c) ): # rfft, so pad out
                 tmp = NP.concatenate( ( Pxy, NP.zeros(len(full_c)-len(Pxy)) ), 1) 
             n = len(tmp)
-            tmp[1:n/2] *= 2.
+            tmp[1:n//2] *= 2.
             tmp = ifft(tmp) # only one extra ifft needed to compute hilbert transform
             tmp = NP.sqrt(tmp*NP.conj(tmp))
             cenv = tmp[lag_idxs] / norm_factor
@@ -131,12 +131,12 @@ def GXCorr(x, y, maxlag, mode='coeff-real', comp_cenv=True):
         if( False ): # use our own hilbert method, dumb padding, fastish 
             padding = 10  # extra padding to clean up the ends a bit 
             if( padding > 0 ):
-                tmp = NP.concatenate( ( NP.zeros(padding), c, NP.zeros(padding) ), 1) 
+                tmp = NP.concatenate( ( NP.zeros(padding), c, NP.zeros(padding) )) 
             else:
                 tmp = c
             n = nextpow2(len(tmp))
             if( len(tmp) < n ): 
-                tmp = NP.concatenate( ( tmp, NP.zeros(n-len(tmp)) ), 1) 
+                tmp = NP.concatenate( ( tmp, NP.zeros(n-len(tmp)) )) 
             h = fft(tmp)
             h[1:n/2] *= 2
             h[n/2+1:] = 0.
