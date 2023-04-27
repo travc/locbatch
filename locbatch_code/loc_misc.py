@@ -14,6 +14,7 @@ from scipy.signal import lfilter, butter, BadCoefficients # needed for filtering
 import filtfilt
 
 from misc_utils import list_unique, issequence
+from functools import partial
 
 
 #### Math general #####################################
@@ -113,7 +114,8 @@ def GenerateFilterDescription(event):
 def CreateFilterFunc(FS, filter_desc=None, filter_func=lfilter):
     filter = _CreateFilter(FS, filter_desc)
     if( filter ):
-        return lambda x: filter_func(filter[1], filter[0], x)
+        #return lambda x: filter_func(filter[1], filter[0], x)
+        return partial(filter_func, filter[1], filter[0])
     else:
         return None
 

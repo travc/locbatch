@@ -32,7 +32,7 @@ def CreateProcessPool(num_processes=None, worker_globals_dict=None, quiet_flag=F
     if( num_processes <= 0 ): 
         num_processes = MP.cpu_count() 
     if not quiet_flag:
-        print >>sys.stderr, "Setting up multiprocessing pool with",num_processes,"worker processes"
+        print("Setting up multiprocessing pool with",num_processes,"worker processes", file=sys.stderr)
     # create the Pool
     mp_pool = MP.Pool(processes=num_processes, initializer=_WorkerProcessInit, initargs=[worker_globals_dict])
     # save the num_processes in mp_pool (should be built into class, but isn't)
@@ -52,7 +52,7 @@ def RespawnProcessPool(mp_pool, num_processes=None, worker_globals_dict=None):
          Also good for freeing up resources / leaks.
          NOTE: use like: mp_pool = mp_pool.Respawn(...)"""
     global mppool
-    print >>sys.stderr, "Respawn multiprocessing pool"
+    print("Respawn multiprocessing pool", file=sys.stderr)
     if( num_processes == None ):
         num_processes = mppool.num_processes
     mppool.close()
@@ -69,7 +69,7 @@ def _WorkerProcessInit(variables_dict=None):
     # the variables in variable_dict, (name, value) pairs, are assigned globals (well to this module)
     # they can be accessed in a function spawned to the workers via globals()['mppool'].name
     if( variables_dict ):
-        for k,v in variables_dict.iteritems():
+        for k,v in variables_dict.items():
             globals()[k] = v
 
 

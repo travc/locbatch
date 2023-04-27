@@ -137,7 +137,7 @@ class TransplantFunc2Method:
     def __call__(self, *args, **kwargs):
         nargs = [self.host]
         nargs.extend(args)
-        return apply(self.method, nargs, kwargs)
+        return self.method(*nargs, **kwargs)
 
 
 
